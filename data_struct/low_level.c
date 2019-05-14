@@ -124,7 +124,7 @@ int int_array_get_size(const int_array* array){
 int double_array_get_size(const double_array* array){
     return array->n;
 }
-
+hi
 #if 0
 int main(){
     int i;
