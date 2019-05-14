@@ -23,7 +23,7 @@ int low_level_check_memleak(){
     return check;
 }
 
-int_array* int_array_alloc(size_t n){
+int_array* int_array_alloc(int n){
     int_array* a = (int_array*)malloc(sizeof(int_array));
     a->data = (int*)malloc(n*sizeof(int));
     a->n = n;
@@ -35,7 +35,7 @@ int_array* int_array_alloc(size_t n){
     return a;
 }
 
-double_array* double_array_alloc(size_t n){
+double_array* double_array_alloc(int n){
     double_array* a = (double_array*)malloc(sizeof(double_array));
     a->data = (double*)malloc(n*sizeof(double));
     a->n = n;
@@ -67,7 +67,7 @@ void double_array_free(double_array* array){
 
 }
 
-int int_array_get(const int_array* array, size_t i){
+int int_array_get(const int_array* array, int i){
 #ifdef DEBUG_MODE_LOW_LEVEL
     if(i>=array->n){
         printf("low_level : i out of range!\n");
@@ -76,7 +76,7 @@ int int_array_get(const int_array* array, size_t i){
     return array->data[i];
 }
 
-double double_array_get(const double_array* array, size_t i){
+double double_array_get(const double_array* array, int i){
 #ifdef DEBUG_MODE_LOW_LEVEL
     if(i>=array->n){
         printf("low_level : i out of range!\n");
@@ -85,7 +85,7 @@ double double_array_get(const double_array* array, size_t i){
     return array->data[i];
 }
 
-void int_array_set(int_array* array, size_t i, int x){
+void int_array_set(int_array* array, int i, int x){
 #ifdef DEBUG_MODE_LOW_LEVEL
     if(i>=array->n){
         printf("low_level : i out of range!\n");
@@ -94,7 +94,7 @@ void int_array_set(int_array* array, size_t i, int x){
     array->data[i] = x;
 }
 
-void double_array_set(double_array* array, size_t i, double x){
+void double_array_set(double_array* array, int i, double x){
 #ifdef DEBUG_MODE_LOW_LEVEL
     if(i>=array->n){
         printf("low_level : i out of range!\n");
@@ -104,24 +104,24 @@ void double_array_set(double_array* array, size_t i, double x){
 }
 
 void int_array_set_all(int_array* array, int x){
-    size_t i;
+    int i;
     for(i=0;i<array->n;++i){
         int_array_set(array,i,x);
     }
 }
 
 void double_array_set_all(double_array* array, double x){
-    size_t i;
+    int i;
     for(i=0;i<array->n;++i){
         double_array_set(array,i,x);
     }
 }
 
-size_t int_array_get_size(const int_array* array){
+int int_array_get_size(const int_array* array){
     return array->n;
 }
 
-size_t double_array_get_size(const double_array* array){
+int double_array_get_size(const double_array* array){
     return array->n;
 }
 
