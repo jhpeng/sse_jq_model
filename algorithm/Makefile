@@ -12,16 +12,16 @@ OPENMP  = -fopenmp
 CUOPENMP  = -Xcompiler -fopenmp
 
 # define the direction containing header file
-INCLUDES= -I/usr/local/include -I./
+INCLUDES= -I/usr/local/include -I./ -I../include
 
 # define the library path
-LFLAGS	= -L/usr/local/lib
+LFLAGS	= -L/usr/local/lib -L../lib
 
 # define any libraries to link to executable
-LIBS	= -lm -lgsl -lgslcblas
+LIBS	= -lm -lgsl -lgslcblas -lds
 
 # define the C object files
-OBJS	= low_level.o mid_level.o
+OBJS	= lattice.o monte_carlo.o
 
 #define the directory for object
 OBJSDIR = object
