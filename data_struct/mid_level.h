@@ -32,7 +32,7 @@ int lattice_struct_get_Nj(const lattice_struct* las);
 int lattice_struct_get_Nq(const lattice_struct* las);
 int lattice_struct_get_sigma0(const lattice_struct* las, int index);
 int lattice_struct_get_sigmap(const lattice_struct* las, int index);
-int lattice_struct_get_bond(const lattice_struct* las, int i_bond);
+double lattice_struct_get_bond(const lattice_struct* las, int i_bond);
 void lattice_struct_get_bond2index(int* index, const lattice_struct* las, int i_bond);
 
 void lattice_struct_set_sigma0(lattice_struct* las, int index, int x);
@@ -88,6 +88,7 @@ int link_vertex_get_list(const link_vertex* lv, int nu);
 int link_vertex_get_first(const link_vertex* lv, int index);
 int link_vertex_get_last(const link_vertex* lv, int index);
 void link_vertex_set_list(link_vertex* lv, int nu, int x);
+void link_vertex_set_first(link_vertex* lv, int index, int x);
 void link_vertex_set_last(link_vertex* lv, int index, int x);
 
 void link_vertex_init(link_vertex* lv);
