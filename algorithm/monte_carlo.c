@@ -7,6 +7,24 @@
 #include "mid_level.h"
 #include "lattice.h"
 
+/* The flip rule is the instruction for flipping operator.
+**   | 0 | 1 | 2 | 3 | 4 | 5
+------------------------------
+** a | 1 | 0 | 4 | 5 | 2 | 3
+** b | 0 | 1 | 3 | 2 | 5 | 4
+** c | 1 | 0 | 4 | 5 | 2 | 3
+** d | 0 | 1 | 3 | 2 | 5 | 4
+**
+**
+**  |    |        |    |
+** c|   c|       d|   d| 
+** --------      --------
+** |\\\\\\|------|\\\\\\|
+** --------      --------
+**  |    |        |    |
+** a|   a|       b|   b|
+**
+*/
 static int flip_rule[24]={
     1,0,4,5,2,3,
     0,1,3,2,5,4,
@@ -39,7 +57,7 @@ void diagonal_operator_update_J(operator_sequence* ops, lattice_struct* las, dou
                 }
             }
         }
-        else if(p%6==0){
+        else if(sp%6==0){
             i_bond = sp/6;
             dis = gsl_rng_uniform_pos(rng);
             J = lattice_struct_get_bond(las,i_bond);
@@ -194,14 +212,51 @@ void flip_bit_operator(operator_sequence* ops, lattice_struct* las, const link_v
     }
 }
 
+void adjust_cutoff(operator_sequence** ops, link_vertex** lv, double buffer){
+    int L = operator_sequence_get_length(*ops);
+    int n = operator_sequence_get_noo(*ops);
+
+    if(n*buffer>L){
+        int sp,L_pre=L;
+        int Nsite = link_vertex_get_Nsite(*lv);
+        L = (int)(n*buffer)+1;
+
+        operator_sequence* ops_new = operator_sequence_alloc(L);
+        link_vertex* lv_new = link_vertex_alloc(L,Nsite);
+        operator_sequence_init(ops_new);
+
+        for(int p=0;p<L_pre;++p){
+            sp = operator_sequence_get_sequence(*ops,p);
+            operator_sequence_set_sequence(ops_new,p,sp);
+        }
+        operator_sequence_set_noo(ops_new,n);
+        operator_sequence_free(*ops);
+        link_vertex_free(*lv);
+        *ops = ops_new;
+        *lv = lv_new;
+    }
+}
+
+int operator_sequence_count_Q(operator_sequence* ops){
+    int sp,n=0;
+    int L = operator_sequence_get_length(ops);
+
+    for(int p=0;p<L;++p){
+        sp = operator_sequence_get_sequence(ops,p);
+        if(sp%6>1) n++;
+    }
+
+    return n;
+}
+
 #if 1
-int main()
+int main(int argc, char **argv)
 {
-    int Nx=32;
-    int Ny=32;
-    double J=0.2,beta=1;
-    int L = 1000;
-    int index[4];
+    int Nx=16;
+    int Ny=16;
+    double J=atof(argv[1]);
+    double beta=32,buffer=1.3;
+    int L = 30;
 
     gsl_rng* rng = gsl_rng_alloc(gsl_rng_mt19937);    
     lattice_struct* las = lattice_struct_create_model_plaquette_2d(Nx,Ny,J,rng);
@@ -209,19 +264,26 @@ int main()
     operator_sequence_init(ops);
     
     int Nsite = lattice_struct_get_Nsite(las);
-    int Nj = lattice_struct_get_Nj(las);
-    int Nq = lattice_struct_get_Nq(las);
 
     link_vertex* lv = link_vertex_alloc(L,Nsite);
 
-    for(int i=0;i<200000;++i){
-        diagonal_operator_update_J(ops,las,beta,rng);
+    for(int i=0;i<2000;++i){
         diagonal_operator_update_Q(ops,las,beta,rng);
+        diagonal_operator_update_J(ops,las,beta,rng);
         construct_link_vertex_list(lv,ops,las);
         loop_update(lv,rng);
         flip_bit_operator(ops,las,lv,rng);
-        printf("%d\n",operator_sequence_get_noo(ops));
+        L = operator_sequence_get_length(ops);
+        /*for(int j=0;j<L;++j){
+            printf("%d ",operator_sequence_get_sequence(ops,j)%6);
+        }
+        printf("\n");*/
+        adjust_cutoff(&ops,&lv,buffer);
+        L = operator_sequence_get_length(ops);
     }
+    int check_p = lattice_struct_check_propagate_state(las,ops);
+    int n_q =  operator_sequence_count_Q(ops);
+    printf("%d %d %d %d\n",L,operator_sequence_get_noo(ops),n_q,check_p);
 
     return 0;
 }

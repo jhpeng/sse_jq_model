@@ -13,12 +13,13 @@ void lattice_struct_sync_sigmap(lattice_struct* las){
     }
 }
 
-void lattice_struct_propagate_state(lattice_struct* las, int op){
-    int i_bond = op/6;
-    int type   = op%6;
+void lattice_struct_propagate_state(lattice_struct* las, int sp){
+    int i_bond = sp/6;
+    int type   = sp%6;
     int spin;
 
-    if(type==1 || type==4){
+    if(sp==-1) return;
+    else if(type==1 || type==4){
         int index[4];
         lattice_struct_get_bond2index(index,las,i_bond);
         spin = lattice_struct_get_sigmap(las,index[0]);
@@ -46,6 +47,28 @@ void lattice_struct_propagate_state(lattice_struct* las, int op){
         spin = lattice_struct_get_sigmap(las,index[3]);
         lattice_struct_set_sigmap(las,index[3],-1*spin);
     }
+}
+
+int lattice_struct_check_propagate_state(lattice_struct* las, operator_sequence* ops){
+    int p,sp,L = operator_sequence_get_length(ops);
+    int index,Nsite = lattice_struct_get_Nsite(las);
+    lattice_struct_sync_sigmap(las);
+    
+    for(p=0;p<L;++p){
+        sp = operator_sequence_get_sequence(ops,p);
+        lattice_struct_propagate_state(las,sp);
+    }
+    int check=0;
+
+    for(index=0;index<Nsite;++index){
+        int sigma0 = lattice_struct_get_sigma0(las,index);
+        int sigmap = lattice_struct_get_sigmap(las,index);
+        if(sigma0!=sigmap){
+            check=1;
+            return check;
+        }
+    }
+    return check;
 }
 
 static void lattice_struct_hot_start(lattice_struct* las, gsl_rng* rng){
