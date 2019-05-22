@@ -19,4 +19,8 @@ void adjust_cutoff(operator_sequence** ops, link_vertex** lv, double buffer);
 
 int operator_sequence_count_Q(operator_sequence* ops);
 
+void monte_carlo_thermalization(lattice_struct* las, operator_sequence** ops, link_vertex** lv, double beta, gsl_rng* rng, int Nther);
+
+void monte_carlo_single_sweep(lattice_struct* las, operator_sequence* ops, link_vertex* lv, double beta, gsl_rng* rng);
+
 #endif

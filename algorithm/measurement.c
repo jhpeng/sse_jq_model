@@ -34,10 +34,26 @@ void observable_result_stdout(const observable* obs, double beta){
 
     observable_calc_mean(mean,obs);
     printf("Nsample : %d\n",Nsample);
+    printf("beta    : %.5e\n",beta);
     for(int i=0;i<Nobs;++i){
         printf("%.5e ",mean[i]);
     }
     printf("\n---------------------------------------\n");
+}
+
+void observable_result_fileout(const observable* obs, double beta, const char* filename){
+    int Nobs = observable_get_Nobs(obs);
+    double mean[Nobs];
+
+    observable_calc_mean(mean,obs);
+
+    FILE* f = fopen(filename,"a");
+    fprintf(f,"%e ",beta);
+    for(int i=0;i<Nobs;++i){
+        fprintf(f,"%e ",mean[i]);
+    }
+    fprintf(f,"\n");
+    fclose(f);
 }
 
 static int_array* antiferro_ms_2d=NULL;
@@ -98,10 +114,10 @@ int main(int argc, char **argv)
 {
     int Nx=16;
     int Ny=16;
-    double J=0.3;
-    double beta=64,buffer=1.3;
+    double J=0.06;
+    double beta=64;
     int L = 1000;
-    int Nobs=3,Nsample=2000,Nblock=5;
+    int Nobs=3,Nsample=2000,Nblock=5,Nther=1000;
 
     gsl_rng* rng = gsl_rng_alloc(gsl_rng_mt19937);    
     lattice_struct* las = lattice_struct_create_model_plaquette_2d(Nx,Ny,J,rng);
@@ -114,25 +130,15 @@ int main(int argc, char **argv)
     observable* obs = observable_alloc(Nobs,Nsample);
     observable_init(obs);
 
-    for(int i=0;i<1000;++i){
-        diagonal_operator_update_Q(ops,las,beta,rng);
-        diagonal_operator_update_J(ops,las,beta,rng);
-        construct_link_vertex_list(lv,ops,las);
-        loop_update(lv,rng);
-        flip_bit_operator(ops,las,lv,rng);
-        adjust_cutoff(&ops,&lv,buffer);
-    }
+    monte_carlo_thermalization(las,&ops,&lv,beta,rng,Nther);
 
     for(int j=0;j<Nblock;++j){
         for(int i=0;i<Nsample;++i){
-            diagonal_operator_update_Q(ops,las,beta,rng);
-            diagonal_operator_update_J(ops,las,beta,rng);
-            construct_link_vertex_list(lv,ops,las);
-            loop_update(lv,rng);
-            flip_bit_operator(ops,las,lv,rng);
+            monte_carlo_single_sweep(las,ops,lv,beta,rng);
             observable_measure_ms_2d(obs,las,ops,i);
         }
         observable_result_stdout(obs,beta);
+        observable_result_fileout(obs,beta,"test.txt");
         observable_init(obs);
     }
 

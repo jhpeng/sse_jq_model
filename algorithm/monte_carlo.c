@@ -249,6 +249,27 @@ int operator_sequence_count_Q(operator_sequence* ops){
     return n;
 }
 
+void monte_carlo_thermalization(lattice_struct* las, operator_sequence** ops, link_vertex** lv, double beta, gsl_rng* rng, int Nther){
+    double buffer=1.3;
+
+    for(int i=0;i<Nther;++i){
+        diagonal_operator_update_Q(*ops,las,beta,rng);
+        diagonal_operator_update_J(*ops,las,beta,rng);
+        construct_link_vertex_list(*lv,*ops,las);
+        loop_update(*lv,rng);
+        flip_bit_operator(*ops,las,*lv,rng);
+        adjust_cutoff(ops,lv,buffer);
+    }
+}
+
+void monte_carlo_single_sweep(lattice_struct* las, operator_sequence* ops, link_vertex* lv, double beta, gsl_rng* rng){
+    diagonal_operator_update_Q(ops,las,beta,rng);
+    diagonal_operator_update_J(ops,las,beta,rng);
+    construct_link_vertex_list(lv,ops,las);
+    loop_update(lv,rng);
+    flip_bit_operator(ops,las,lv,rng);
+}
+
 #if 0
 int main(int argc, char **argv)
 {
