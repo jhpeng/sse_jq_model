@@ -109,7 +109,7 @@ void observable_measure_ms_2d(observable* obs, lattice_struct* las, const operat
     observable_set_data(obs,2,i_sample%Nsample,m4);
 }
 
-#if 1
+#if 0
 int main(int argc, char **argv)
 {
     int Nx=16;
@@ -118,9 +118,11 @@ int main(int argc, char **argv)
     double beta=64;
     int L = 1000;
     int Nobs=3,Nsample=2000,Nblock=5,Nther=1000;
+    int seed=39829;
 
     gsl_rng* rng = gsl_rng_alloc(gsl_rng_mt19937);    
-    lattice_struct* las = lattice_struct_create_model_plaquette_2d(Nx,Ny,J,rng);
+    gsl_rng_set(rng,seed);
+    lattice_struct* las = lattice_struct_create_model_isotropy_2d(Nx,Ny,J,rng);
     operator_sequence* ops = operator_sequence_alloc(L);
     operator_sequence_init(ops);
     

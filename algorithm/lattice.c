@@ -133,3 +133,53 @@ lattice_struct* lattice_struct_create_model_plaquette_2d(int Nx, int Ny, double 
 
     return las;
 }
+
+lattice_struct* lattice_struct_create_model_isotropy_2d(int Nx, int Ny, double J, gsl_rng* rng){
+    if(Nx%2!=0 || Ny%2!=0){
+        printf("Nx and Ny must be the miltiply of 2!\n");
+    }
+    int Nsite = Nx*Ny;
+    int Nj = 2*Nx*Ny;
+    int Nq = 2*Nx*Ny;
+    int i,j,t,q,index[4];
+    lattice_struct* las = lattice_struct_alloc(Nsite,Nj,Nq);
+
+    for(int i_bond=0;i_bond<(4*Nsite);++i_bond){
+        t = i_bond%Nsite;
+        q = i_bond/Nsite;
+        i = t%Nx;
+        j = t/Nx;
+        if(q==0){
+            index[0] = i+Nx*j;
+            index[1] = ((i+1)%Nx)+Nx*j;
+            index[2] = -1;
+            index[3] = -1;
+            lattice_struct_set_bond(las,i_bond,J);
+        }
+        else if(q==1){
+            index[0] = i+Nx*j;
+            index[1] = i+Nx*((j+1)%Ny);
+            index[2] = -1;
+            index[3] = -1;
+            lattice_struct_set_bond(las,i_bond,J);
+        }
+        else if(q==2){
+            index[0] = i+Nx*j;
+            index[1] = ((i+1)%Nx)+Nx*j;
+            index[2] = i+Nx*((j+1)%Ny);
+            index[3] = ((i+1)%Nx)+Nx*((j+1)%Ny);
+            lattice_struct_set_bond(las,i_bond,1);
+        }
+        else if(q==3){
+            index[0] = i+Nx*j;
+            index[1] = i+Nx*((j+1)%Ny);
+            index[2] = ((i+1)%Nx)+Nx*j;
+            index[3] = ((i+1)%Nx)+Nx*((j+1)%Ny);
+            lattice_struct_set_bond(las,i_bond,1);
+        }
+        lattice_struct_set_bond2index(las,i_bond,index);
+    }
+    lattice_struct_hot_start(las,rng);
+
+    return las;
+}

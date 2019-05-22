@@ -2,7 +2,7 @@
 */
 #ifndef MID_LEVEL_H
 #define MID_LEVEL_H
-
+#include "low_level.h"
 /* Note on lattice struct
 ** Nsite  : total number of spins
 ** Nj     : total number of J bonds
