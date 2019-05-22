@@ -249,14 +249,14 @@ int operator_sequence_count_Q(operator_sequence* ops){
     return n;
 }
 
-#if 1
+#if 0
 int main(int argc, char **argv)
 {
     int Nx=16;
     int Ny=16;
     double J=atof(argv[1]);
-    double beta=32,buffer=1.3;
-    int L = 30;
+    double beta=32,buffer=10;
+    int L = 1000;
 
     gsl_rng* rng = gsl_rng_alloc(gsl_rng_mt19937);    
     lattice_struct* las = lattice_struct_create_model_plaquette_2d(Nx,Ny,J,rng);
@@ -284,6 +284,13 @@ int main(int argc, char **argv)
     int check_p = lattice_struct_check_propagate_state(las,ops);
     int n_q =  operator_sequence_count_Q(ops);
     printf("%d %d %d %d\n",L,operator_sequence_get_noo(ops),n_q,check_p);
+
+    operator_sequence_free(ops);
+    lattice_struct_free(las);
+    link_vertex_free(lv);
+    
+    int check_m = low_level_check_memleak();
+    printf("%d\n",check_m);
 
     return 0;
 }

@@ -5,7 +5,7 @@
 CC	= gcc
 
 # define any compile-time flags
-CFLAGS = -Wall -g -fPIC
+CFLAGS = -Wall -g -fPIC -O3
 
 # define openmp flags
 OPENMP  = -fopenmp
@@ -21,7 +21,7 @@ LFLAGS	= -L/usr/local/lib -L../lib
 LIBS	= -lm -lgsl -lgslcblas -lds
 
 # define the C object files
-OBJS	= lattice.o monte_carlo.o
+OBJS	= lattice.o monte_carlo.o measurement.o
 
 #define the directory for object
 OBJSDIR = object

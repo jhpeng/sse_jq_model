@@ -8,7 +8,7 @@
 /*The mode trying to debug and check the memory leakage.
 * Please turn it off after testing the code.
 */
-#if 1
+#if 0
 #define DEBUG_MODE_LOW_LEVEL
 #define CHECK_MEM_LEAK
 #endif

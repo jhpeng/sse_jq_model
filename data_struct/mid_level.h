@@ -112,7 +112,7 @@ void observable_free(observable* obs);
 
 int observable_get_Nobs(const observable* obs);
 int observable_get_Nsample(const observable* obs);
-int observable_get_data(const observable* obs, int i_obs, int i_sample);
+double observable_get_data(const observable* obs, int i_obs, int i_sample);
 int observable_get_init(const observable* obs, int i_obs, int i_sample);
 
 void observable_set_data(observable* obs, int i_obs, int i_sample, double x);

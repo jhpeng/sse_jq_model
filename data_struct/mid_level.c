@@ -203,7 +203,7 @@ int observable_get_Nsample(const observable* obs){
     return obs->Nsample;
 }
 
-int observable_get_data(const observable* obs, int i_obs, int i_sample){
+double observable_get_data(const observable* obs, int i_obs, int i_sample){
     return double_array_get(obs->data,i_obs+obs->Nobs*i_sample);
 }
 
