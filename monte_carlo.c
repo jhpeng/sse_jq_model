@@ -36,7 +36,6 @@ void diagonal_operator_update_J(operator_sequence* ops, lattice_struct* las, dou
     int L = operator_sequence_get_length(ops);
     int n = operator_sequence_get_noo(ops);
     int Nj = lattice_struct_get_Nj(las);
-    int Nq = lattice_struct_get_Nq(las);
     int index[4],s1,s2,sp;
     double dis,J;
 
@@ -52,7 +51,7 @@ void diagonal_operator_update_J(operator_sequence* ops, lattice_struct* las, dou
             if(s1!=s2){
                 dis = gsl_rng_uniform_pos(rng);
                 J = lattice_struct_get_bond(las,i_bond);
-                if(dis*4*(L-n)<beta*J*(Nj+Nq)){
+                if(dis*2*(L-n)<beta*J*Nj){
                     operator_sequence_set_sequence(ops,p,i_bond*6);
                     n++;
                 }
@@ -62,7 +61,7 @@ void diagonal_operator_update_J(operator_sequence* ops, lattice_struct* las, dou
             i_bond = sp/6;
             dis = gsl_rng_uniform_pos(rng);
             J = lattice_struct_get_bond(las,i_bond);
-            if(beta*(Nj+Nq)*J*dis<4*(L-n+1)){
+            if(beta*Nj*J*dis<2*(L-n+1)){
                 operator_sequence_set_sequence(ops,p,-1);
                 n--;
             }
@@ -96,7 +95,7 @@ void diagonal_operator_update_Q(operator_sequence* ops, lattice_struct* las, dou
             if(s1!=s2 && s3!=s4){
                 dis = gsl_rng_uniform_pos(rng);
                 Q = lattice_struct_get_bond(las,i_bond);
-                if(dis*8*(L-n)<beta*Q*(Nq+Nj)){
+                if(dis*4*(L-n)<beta*Q*Nq){
                     operator_sequence_set_sequence(ops,p,i_bond*6+2);
                     n++;
                 }
@@ -106,7 +105,72 @@ void diagonal_operator_update_Q(operator_sequence* ops, lattice_struct* las, dou
             i_bond = sp/6;
             dis = gsl_rng_uniform_pos(rng);
             Q = lattice_struct_get_bond(las,i_bond);
-            if(beta*(Nq+Nj)*Q*dis<8*(L-n+1)){
+            if(beta*Nq*Q*dis<4*(L-n+1)){
+                operator_sequence_set_sequence(ops,p,-1);
+                n--;
+            }
+        }
+        else lattice_struct_propagate_state(las,sp);
+    }
+
+    operator_sequence_set_noo(ops,n);
+}
+
+void diagonal_operator_update_together(operator_sequence* ops, lattice_struct* las, double beta, gsl_rng* rng){
+    int p,i_bond;
+    int L = operator_sequence_get_length(ops);
+    int n = operator_sequence_get_noo(ops);
+    int Nj = lattice_struct_get_Nj(las);
+    int Nq = lattice_struct_get_Nq(las);
+    int index[4],s1,s2,s3,s4,sp;
+    double dis,J,Q;
+
+    lattice_struct_sync_sigmap(las);
+
+    for(p=0;p<L;++p){
+        sp = operator_sequence_get_sequence(ops,p);
+        if(sp==-1){
+            i_bond = (int)(gsl_rng_uniform_pos(rng)*(Nj+Nq));
+            lattice_struct_get_bond2index(index,las,i_bond);
+            s1 = lattice_struct_get_sigmap(las,index[0]);
+            s2 = lattice_struct_get_sigmap(las,index[1]);
+            s3 = lattice_struct_get_sigmap(las,index[2]);
+            s4 = lattice_struct_get_sigmap(las,index[3]);
+            if(i_bond<Nj){
+                if(s1!=s2){
+                    dis = gsl_rng_uniform_pos(rng);
+                    J = lattice_struct_get_bond(las,i_bond);
+                    if(dis*2*(L-n)<beta*J*(Nj+Nq)){
+                        operator_sequence_set_sequence(ops,p,i_bond*6);
+                        n++;
+                    }
+                }
+            }
+            else{
+                if(s1!=s2 && s3!=s4){
+                    dis = gsl_rng_uniform_pos(rng);
+                    Q = lattice_struct_get_bond(las,i_bond);
+                    if(dis*4*(L-n)<beta*Q*(Nj+Nq)){
+                        operator_sequence_set_sequence(ops,p,i_bond*6+2);
+                        n++;
+                    }
+                }
+            }
+        }
+        else if(sp%6==0){
+            i_bond = sp/6;
+            dis = gsl_rng_uniform_pos(rng);
+            J = lattice_struct_get_bond(las,i_bond);
+            if(beta*(Nj+Nq)*J*dis<2*(L-n+1)){
+                operator_sequence_set_sequence(ops,p,-1);
+                n--;
+            }
+        }
+        else if(sp%6==2){
+            i_bond = sp/6;
+            dis = gsl_rng_uniform_pos(rng);
+            Q = lattice_struct_get_bond(las,i_bond);
+            if(beta*(Nq+Nj)*Q*dis<4*(L-n+1)){
                 operator_sequence_set_sequence(ops,p,-1);
                 n--;
             }
@@ -256,6 +320,7 @@ void monte_carlo_thermalization(lattice_struct* las, operator_sequence** ops, li
     for(int i=0;i<Nther;++i){
         diagonal_operator_update_Q(*ops,las,beta,rng);
         diagonal_operator_update_J(*ops,las,beta,rng);
+        /*diagonal_operator_update_together(*ops,las,beta,rng);*/
         construct_link_vertex_list(*lv,*ops,las);
         loop_update(*lv,rng);
         flip_bit_operator(*ops,las,*lv,rng);
@@ -266,6 +331,7 @@ void monte_carlo_thermalization(lattice_struct* las, operator_sequence** ops, li
 void monte_carlo_single_sweep(lattice_struct* las, operator_sequence* ops, link_vertex* lv, double beta, gsl_rng* rng){
     diagonal_operator_update_Q(ops,las,beta,rng);
     diagonal_operator_update_J(ops,las,beta,rng);
+    /*diagonal_operator_update_together(ops,las,beta,rng);*/
     construct_link_vertex_list(lv,ops,las);
     loop_update(lv,rng);
     flip_bit_operator(ops,las,lv,rng);
