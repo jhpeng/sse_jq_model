@@ -14,7 +14,7 @@
 #include "measurement.h"
 
 void normal_scheme_isotropy_square_lattice(int Nx, int Ny, double J, double beta, int Nsample, int Nblock, int Nther, int seed, const char* filename){
-    int Nobs=3,L=1000;
+    int Nobs=1,L=1000;
 
     gsl_rng* rng = gsl_rng_alloc(gsl_rng_mt19937);
     gsl_rng_set(rng,seed);
@@ -31,7 +31,9 @@ void normal_scheme_isotropy_square_lattice(int Nx, int Ny, double J, double beta
     for(int j=0;j<Nblock;++j){
         for(int i=0;i<Nsample;++i){
             monte_carlo_single_sweep(las,ops,lv,beta,rng);
-            observable_measure_ms_2d(obs,las,ops,i);
+            /*observable_measure_ms_2d(obs,las,ops,i);*/
+            /*observable_measure_mz_2d(obs,las,i);*/
+            observable_measure_uniform_sus_2d(obs,las,beta,i);
         }
         observable_result_fileout(obs,beta,filename);
         observable_init(obs);

@@ -109,6 +109,55 @@ void observable_measure_ms_2d(observable* obs, lattice_struct* las, const operat
     observable_set_data(obs,2,i_sample%Nsample,m4);
 }
 
+void observable_measure_mz_2d(observable* obs, const lattice_struct* las, int i_sample){
+    int Nobs = observable_get_Nobs(obs);
+    int Nsample = observable_get_Nsample(obs);
+    if(Nobs!=3){
+        printf("observable_measure_mz_2d : Nobs must be 3\n");
+        exit(-1);
+    }
+    else if(i_sample<0){
+        printf("observable_measure_mz_2d : i_sample must be larger or equal to zero!\n");
+        exit(-1);
+    }
+
+    int i;
+    int Nsite = lattice_struct_get_Nsite(las);
+    double m=0,m1=0,m2=0,m4=0;
+    for(i=0;i<Nsite;++i){
+        m += lattice_struct_get_sigma0(las,i);
+    }
+    m1 = m*0.5/Nsite;
+    m2 = m*m*0.25/Nsite/Nsite;
+    m4 = m*m*m*m*0.0625/Nsite/Nsite/Nsite/Nsite;
+    observable_set_data(obs,0,i_sample%Nsample,m1);
+    observable_set_data(obs,1,i_sample%Nsample,m2);
+    observable_set_data(obs,2,i_sample%Nsample,m4);
+}
+
+void observable_measure_uniform_sus_2d(observable* obs, const lattice_struct* las, double beta, int i_sample){
+    int Nobs = observable_get_Nobs(obs);
+    int Nsample = observable_get_Nsample(obs);
+    if(Nobs!=1){
+        printf("observable_measure_mz_2d : Nobs must be 1\n");
+        exit(-1);
+    }
+    else if(i_sample<0){
+        printf("observable_measure_mz_2d : i_sample must be larger or equal to zero!\n");
+        exit(-1);
+    }
+
+    int i;
+    int Nsite = lattice_struct_get_Nsite(las);
+    double m=0,m2=0;
+    for(i=0;i<Nsite;++i){
+        m += lattice_struct_get_sigma0(las,i);
+    }
+    m2 = m*m*0.25/Nsite*beta;
+
+    observable_set_data(obs,0,i_sample%Nsample,m2);
+}
+
 #if 0
 int main(int argc, char **argv)
 {

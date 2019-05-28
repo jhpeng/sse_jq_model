@@ -149,6 +149,13 @@ lattice_struct* lattice_struct_create_model_isotropy_2d(int Nx, int Ny, double J
         q = i_bond/Nsite;
         i = t%Nx;
         j = t/Nx;
+
+        /*Initialize the index*/
+        index[0]=-1;
+        index[1]=-1;
+        index[2]=-1;
+        index[3]=-1;
+
         if(q==0){
             index[0] = i+Nx*j;
             index[1] = ((i+1)%Nx)+Nx*j;
