@@ -36,6 +36,7 @@ void diagonal_operator_update_J(operator_sequence* ops, lattice_struct* las, dou
     int L = operator_sequence_get_length(ops);
     int n = operator_sequence_get_noo(ops);
     int Nj = lattice_struct_get_Nj(las);
+    int Nq = lattice_struct_get_Nq(las);
     int index[4],s1,s2,sp;
     double dis,J;
 
@@ -51,7 +52,7 @@ void diagonal_operator_update_J(operator_sequence* ops, lattice_struct* las, dou
             if(s1!=s2){
                 dis = gsl_rng_uniform_pos(rng);
                 J = lattice_struct_get_bond(las,i_bond);
-                if(dis*2*(L-n)<beta*J*Nj){
+                if(dis*4*(L-n)<beta*J*(Nj+Nq)){
                     operator_sequence_set_sequence(ops,p,i_bond*6);
                     n++;
                 }
@@ -61,7 +62,7 @@ void diagonal_operator_update_J(operator_sequence* ops, lattice_struct* las, dou
             i_bond = sp/6;
             dis = gsl_rng_uniform_pos(rng);
             J = lattice_struct_get_bond(las,i_bond);
-            if(beta*Nj*J*dis<2*(L-n+1)){
+            if(beta*(Nj+Nq)*J*dis<4*(L-n+1)){
                 operator_sequence_set_sequence(ops,p,-1);
                 n--;
             }
@@ -95,7 +96,7 @@ void diagonal_operator_update_Q(operator_sequence* ops, lattice_struct* las, dou
             if(s1!=s2 && s3!=s4){
                 dis = gsl_rng_uniform_pos(rng);
                 Q = lattice_struct_get_bond(las,i_bond);
-                if(dis*4*(L-n)<beta*Q*Nq){
+                if(dis*8*(L-n)<beta*Q*(Nq+Nj)){
                     operator_sequence_set_sequence(ops,p,i_bond*6+2);
                     n++;
                 }
@@ -105,7 +106,7 @@ void diagonal_operator_update_Q(operator_sequence* ops, lattice_struct* las, dou
             i_bond = sp/6;
             dis = gsl_rng_uniform_pos(rng);
             Q = lattice_struct_get_bond(las,i_bond);
-            if(beta*Nq*Q*dis<4*(L-n+1)){
+            if(beta*(Nq+Nj)*Q*dis<8*(L-n+1)){
                 operator_sequence_set_sequence(ops,p,-1);
                 n--;
             }
