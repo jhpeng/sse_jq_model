@@ -153,7 +153,7 @@ void observable_measure_uniform_sus_2d(observable* obs, const lattice_struct* la
     for(i=0;i<Nsite;++i){
         m += lattice_struct_get_sigma0(las,i);
     }
-    m2 = m*m*0.25/Nsite*beta;
+    m2 = m*m*0.25;
 
     observable_set_data(obs,0,i_sample%Nsample,m2);
 }
