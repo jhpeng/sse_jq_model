@@ -16,4 +16,8 @@ int lattice_struct_check_propagate_state(lattice_struct* las, operator_sequence*
 lattice_struct* lattice_struct_create_model_plaquette_2d(int Nx, int Ny, double J, gsl_rng* rng);
 
 lattice_struct* lattice_struct_create_model_isotropy_2d(int Nx, int Ny, double J, gsl_rng* rng);
+
+lattice_struct* lattice_struct_create_model_heisenberg_2d(int Nx, int Ny, gsl_rng* rng);
+
+lattice_struct* lattice_struct_create_model_heisenberg_1d(int Nx, gsl_rng* rng);
 #endif
