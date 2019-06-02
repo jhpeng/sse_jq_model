@@ -81,6 +81,7 @@ void diagonal_operator_update_Q(operator_sequence* ops, lattice_struct* las, dou
     int index[4],s1,s2,s3,s4,sp;
     double dis,Q;
 
+    if(Nq==0) return;
     lattice_struct_sync_sigmap(las);
 
     for(p=0;p<L;++p){
@@ -182,7 +183,7 @@ void diagonal_operator_update_together(operator_sequence* ops, lattice_struct* l
 }
 
 void construct_link_vertex_list(link_vertex* lv, const operator_sequence* ops, const lattice_struct* las){
-    int i,p,sp,i_bond,type,nu1,nu0;
+    int i,p,sp,i_bond,nu1,nu0;
     int index[4];
     int L = operator_sequence_get_length(ops);
     int Nsite = lattice_struct_get_Nsite(las);
@@ -193,7 +194,6 @@ void construct_link_vertex_list(link_vertex* lv, const operator_sequence* ops, c
         sp = operator_sequence_get_sequence(ops,p);
         if(sp!=-1){
             i_bond = sp/6;
-            type   = sp%6;
             lattice_struct_get_bond2index(index,las,i_bond);
             for(i=0;i<4;++i){
                 if(index[i]!=-1){
@@ -220,6 +220,21 @@ void construct_link_vertex_list(link_vertex* lv, const operator_sequence* ops, c
             link_vertex_set_list(lv,nu1,nu0);
         }
     }
+
+#if 0
+    for(p=0;p<L;++p){
+        sp = operator_sequence_get_sequence(ops,p);
+        i_bond = sp/6;
+        type   = sp%6;
+        
+        printf("%d %d | ",i_bond,type);
+        for(i=0;i<8;++i){
+            nu0 = link_vertex_get_list(lv,8*p+i);
+            printf("%d ",nu0);
+        }
+        printf("\n");
+    }
+#endif
 }
 
 void loop_update(link_vertex* lv, gsl_rng* rng){
@@ -228,14 +243,12 @@ void loop_update(link_vertex* lv, gsl_rng* rng){
 
     for(nu0=0;nu0<(L*8);nu0+=2){
         if(link_vertex_get_list(lv,nu0)>=0){
-            nup = nu0;
             nun = nu0;
             if(gsl_rng_uniform_pos(rng)<0.5) flip=-1;
             else flip=-2;
-            while(nun>=0){
+            while(link_vertex_get_list(lv,nun)>=0){
                 link_vertex_set_list(lv,nun,flip);
-                nun = nun^1;
-                nup = nun;
+                nup = nun^1;
                 nun = link_vertex_get_list(lv,nup);
                 link_vertex_set_list(lv,nup,flip);
             }
@@ -254,8 +267,7 @@ void flip_bit_operator(operator_sequence* ops, lattice_struct* las, const link_v
             type = sp%6;
             i_bond = sp/6;
             i_flip_rule = ((nu%8)/2)*6+type;
-            type = flip_rule[i_flip_rule];
-            sp = i_bond*6+type;
+            sp = i_bond*6+flip_rule[i_flip_rule];
             operator_sequence_set_sequence(ops,nu/8,sp);
         }
     }
@@ -268,7 +280,7 @@ void flip_bit_operator(operator_sequence* ops, lattice_struct* las, const link_v
                 lattice_struct_set_sigma0(las,index,-1*spin);
             }
         }
-        else{
+        else if(nu>=0){
             if(link_vertex_get_list(lv,nu)==-2){
                 spin = lattice_struct_get_sigma0(las,index);
                 lattice_struct_set_sigma0(las,index,-1*spin);
@@ -318,9 +330,9 @@ void monte_carlo_thermalization(lattice_struct* las, operator_sequence** ops, li
     double buffer=1.3;
 
     for(int i=0;i<Nther;++i){
-        diagonal_operator_update_Q(*ops,las,beta,rng);
-        diagonal_operator_update_J(*ops,las,beta,rng);
-        /*diagonal_operator_update_together(*ops,las,beta,rng);*/
+        /*diagonal_operator_update_Q(*ops,las,beta,rng);
+        diagonal_operator_update_J(*ops,las,beta,rng);*/
+        diagonal_operator_update_together(*ops,las,beta,rng);
         construct_link_vertex_list(*lv,*ops,las);
         loop_update(*lv,rng);
         flip_bit_operator(*ops,las,*lv,rng);
@@ -329,9 +341,9 @@ void monte_carlo_thermalization(lattice_struct* las, operator_sequence** ops, li
 }
 
 void monte_carlo_single_sweep(lattice_struct* las, operator_sequence* ops, link_vertex* lv, double beta, gsl_rng* rng){
-    diagonal_operator_update_Q(ops,las,beta,rng);
-    diagonal_operator_update_J(ops,las,beta,rng);
-    /*diagonal_operator_update_together(ops,las,beta,rng);*/
+    /*diagonal_operator_update_Q(ops,las,beta,rng);
+    diagonal_operator_update_J(ops,las,beta,rng);*/
+    diagonal_operator_update_together(ops,las,beta,rng);
     construct_link_vertex_list(lv,ops,las);
     loop_update(lv,rng);
     flip_bit_operator(ops,las,lv,rng);
