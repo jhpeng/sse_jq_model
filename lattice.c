@@ -190,3 +190,68 @@ lattice_struct* lattice_struct_create_model_isotropy_2d(int Nx, int Ny, double J
 
     return las;
 }
+
+lattice_struct* lattice_struct_create_model_heisenberg_2d(int Nx, int Ny, gsl_rng* rng){
+    if(Nx%2!=0 || Ny%2!=0){
+        printf("Nx and Ny must be the miltiply of 2!\n");
+    }
+    int Nsite = Nx*Ny;
+    int Nj = 2*Nx*Ny;
+    int i,j,t,q,index[4];
+    lattice_struct* las = lattice_struct_alloc(Nsite,Nj,0);
+
+    for(int i_bond=0;i_bond<(2*Nsite);++i_bond){
+        t = i_bond%Nsite;
+        q = i_bond/Nsite;
+        i = t%Nx;
+        j = t/Nx;
+
+        /*Initialize the index*/
+        index[0]=-1;
+        index[1]=-1;
+        index[2]=-1;
+        index[3]=-1;
+
+        if(q==0){
+            index[0] = i+Nx*j;
+            index[1] = ((i+1)%Nx)+Nx*j;
+            index[2] = -1;
+            index[3] = -1;
+            lattice_struct_set_bond(las,i_bond,1);
+        }
+        else if(q==1){
+            index[0] = i+Nx*j;
+            index[1] = i+Nx*((j+1)%Ny);
+            index[2] = -1;
+            index[3] = -1;
+            lattice_struct_set_bond(las,i_bond,1);
+        }
+        lattice_struct_set_bond2index(las,i_bond,index);
+    }
+    lattice_struct_hot_start(las,rng);
+
+    return las;
+}
+
+lattice_struct* lattice_struct_create_model_heisenberg_1d(int Nx, gsl_rng* rng){
+    if(Nx%2!=0){
+        printf("Nx must be the miltiply of 2!\n");
+    }
+    int Nsite = Nx;
+    int Nj = Nx;
+    int index[4];
+    lattice_struct* las = lattice_struct_alloc(Nsite,Nj,0);
+
+    for(int i_bond=0;i_bond<Nj;i_bond++){
+        index[0] = i_bond;
+        index[1] = (i_bond+1)%Nj;
+        index[2] = -1;
+        index[3] = -1;
+        lattice_struct_set_bond2index(las,i_bond,index);
+        lattice_struct_set_bond(las,i_bond,1);
+    }
+    lattice_struct_hot_start(las,rng);
+
+    return las;
+}
+

@@ -127,19 +127,20 @@ void observable_measure_mz_2d(observable* obs, const lattice_struct* las, int i_
     for(i=0;i<Nsite;++i){
         m += lattice_struct_get_sigma0(las,i);
     }
-    m1 = m*0.5/Nsite;
-    m2 = m*m*0.25/Nsite/Nsite;
-    m4 = m*m*m*m*0.0625/Nsite/Nsite/Nsite/Nsite;
+    m1 = m*0.5;
+    m2 = m*m*0.25;
+    m4 = m*m*m*m*0.0625;
     observable_set_data(obs,0,i_sample%Nsample,m1);
     observable_set_data(obs,1,i_sample%Nsample,m2);
     observable_set_data(obs,2,i_sample%Nsample,m4);
 }
 
-void observable_measure_uniform_sus_2d(observable* obs, const lattice_struct* las, double beta, int i_sample){
+void observable_measure_uniform_sus_2d(observable* obs, const lattice_struct* las, const operator_sequence* ops, double beta, int i_sample){
     int Nobs = observable_get_Nobs(obs);
     int Nsample = observable_get_Nsample(obs);
-    if(Nobs!=1){
-        printf("observable_measure_mz_2d : Nobs must be 1\n");
+    int noo = operator_sequence_get_noo(ops);
+    if(Nobs!=3){
+        printf("observable_measure_mz_2d : Nobs must be 2\n");
         exit(-1);
     }
     else if(i_sample<0){
@@ -149,13 +150,16 @@ void observable_measure_uniform_sus_2d(observable* obs, const lattice_struct* la
 
     int i;
     int Nsite = lattice_struct_get_Nsite(las);
-    double m=0,m2=0;
+    double m=0,m1,m2;
     for(i=0;i<Nsite;++i){
         m += lattice_struct_get_sigma0(las,i);
     }
-    m2 = m*m*0.25;
+    m1 = m*0.5/Nsite;
+    m2 = m*m*0.25/Nsite*beta;
 
-    observable_set_data(obs,0,i_sample%Nsample,m2);
+    observable_set_data(obs,0,i_sample%Nsample,noo);
+    observable_set_data(obs,1,i_sample%Nsample,m1);
+    observable_set_data(obs,2,i_sample%Nsample,m2);
 }
 
 #if 0

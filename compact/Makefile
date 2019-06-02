@@ -21,7 +21,7 @@ LFLAGS	= -L/usr/local/lib
 LIBS	= -lm -lgsl -lgslcblas
 
 # define the C object files
-OBJS	= low_level.o mid_level.o lattice.o measurement.o monte_carlo.o scheme.o
+OBJS	= main.o
 
 #define the directory for object
 OBJSDIR = object
