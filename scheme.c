@@ -45,6 +45,38 @@ void normal_scheme_isotropy_square_lattice(int Nx, int Ny, double J, double beta
     observable_free(obs);
 }
 
+void normal_scheme_heisenberg_square_lattice(int Nx, int Ny, double beta, int Nsample, int Nblock, int Nther, int seed, const char* filename){
+    int Nobs=3,L=12;
+
+    gsl_rng* rng = gsl_rng_alloc(gsl_rng_mt19937);
+    gsl_rng_set(rng,seed);
+    lattice_struct* las = lattice_struct_create_model_heisenberg_2d(Nx,Ny,rng);
+    operator_sequence* ops = operator_sequence_alloc(L);
+    operator_sequence_init(ops);
+    int Nsite = lattice_struct_get_Nsite(las);
+    link_vertex* lv = link_vertex_alloc(L,Nsite);
+    observable* obs = observable_alloc(Nobs,Nsample);
+    observable_init(obs);
+
+    monte_carlo_thermalization(las,&ops,&lv,beta,rng,Nther);
+
+    for(int j=0;j<Nblock;++j){
+        for(int i=0;i<Nsample;++i){
+            monte_carlo_single_sweep(las,ops,lv,beta,rng);
+            /*observable_measure_ms_2d(obs,las,ops,i);*/
+            /*observable_measure_mz_2d(obs,las,i);*/
+            observable_measure_uniform_sus_2d(obs,las,ops,beta,i);
+        }
+        observable_result_fileout(obs,beta,filename);
+        observable_init(obs);
+    }
+
+    operator_sequence_free(ops);
+    lattice_struct_free(las);
+    link_vertex_free(lv);
+    observable_free(obs);
+}
+
 static int help=0;
 static int mode=0;
 static int Nx=8;
@@ -114,4 +146,5 @@ int main(int argc, char **argv)
     if(help) return 0;
 
     if(mode==0) normal_scheme_isotropy_square_lattice(Nx,Ny,J,beta,Nsample,Nblock,Nther,seed,filename);
+    else if(mode==11) normal_scheme_heisenberg_square_lattice(Nx,Ny,beta,Nsample,Nblock,Nther,seed,filename);
 }
