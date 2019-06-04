@@ -89,7 +89,7 @@ gsl_rng* rng;
 ** ---------------- SSE algorithm ------------------- **
 ** -------------------------------------------------- */
 
-void propagate_state(sp){
+void propagate_state(int sp){
     int i_bond = sp/6;
     int type   = sp%6;
 
