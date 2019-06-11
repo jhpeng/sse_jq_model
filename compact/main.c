@@ -73,7 +73,7 @@ double* Bondst;
 */
 int Nobs,Nsample;
 double* Data;
-char Filename[128];
+char Filename[128]="test.txt";
 
 /*
 ** Nblock  : the total number of the block data
@@ -456,11 +456,11 @@ int main(int argc, char** argv){
     int n_obs=4;
     double buffer=1.3;
 
-    Beta = 4;
+    Beta = 512;
     Seed = 9237912;
-    Nx = 4;
-    Ny = 4;
-    Jbond = 1.0;
+    Nx = 48;
+    Ny = 48;
+    Jbond = 0.04;
     Nther = 20000;
     Nsample = 2000;
     Nblock = 50;
