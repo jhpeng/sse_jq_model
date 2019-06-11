@@ -42,11 +42,13 @@ int lattice_struct_get_Nq(const lattice_struct* las){
 }
 
 int lattice_struct_get_sigma0(const lattice_struct* las, int index){
-    return int_array_get(las->sigma0,index);
+    if(index==-1) return -1;
+    else return int_array_get(las->sigma0,index);
 }
 
 int lattice_struct_get_sigmap(const lattice_struct* las, int index){
-    return int_array_get(las->sigma0,index);
+    if(index==-1) return -1;
+    else return int_array_get(las->sigma0,index);
 }
 
 double lattice_struct_get_bond(const lattice_struct* las, int i_bond){

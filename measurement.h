@@ -15,5 +15,5 @@ void observable_measure_ms_2d(observable* obs, lattice_struct* las, const operat
 
 void observable_measure_mz_2d(observable* obs, const lattice_struct* las, int i_sample);
 
-void observable_measure_uniform_sus_2d(observable* obs, const lattice_struct* las, double beta, int i_sample);
+void observable_measure_uniform_sus_2d(observable* obs, const lattice_struct* las, const operator_sequence* ops, double beta, int i_sample);
 #endif
