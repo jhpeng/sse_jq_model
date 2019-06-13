@@ -7,7 +7,7 @@
 __global__ void test_random(double* rand_d, int length, curandState* s){
     int id = blockIdx.x * blockDim.x + threadIdx.x;
     if(id<length){
-        curand_init(0,id,0,&s[id]);
+        curand_init(id*93287,0,0,&s[id]);
         rand_d[id] = curand_uniform_double(&s[id]);
     }
 }
@@ -27,9 +27,10 @@ int main(void)
 
     int const n_thread = length/200;
     int const n_block = 200;
+
     test_random<<<n_block,n_thread>>>(data_d,length,s);
-    cudaError_t err;
-    err = cudaThreadSynchronize();
+
+    cudaDeviceSynchronize();
 
     cudaMemcpy(data_h,data_d,length*sizeof(double),cudaMemcpyDeviceToHost);
 
