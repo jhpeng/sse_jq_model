@@ -7,29 +7,6 @@
 
 #include <gsl/gsl_rng.h>
 
-typedef struct placeholder{
-    int nstream;
-    int length;
-    int noo;
-    int* sequence;
-    int* linkv;
-    int nsite;
-    int **sigma0;
-    int **sigmap;
-    int **vfirst;
-    int **vlast;
-    int nj;
-    int nq;
-    int* bond2index;
-    double* bondst;
-    double beta;
-    curandState* cu_rng;
-} placeholder;
-
-placeholder* device_create_placeholder(int nstream, int length, int nsite, int nj, int nq, double beta){
-    
-}
-
 /* ---------------------------------------------------- **
 ** ------------------- set curand --------------------- **
 ** ---------------------------------------------------- */
@@ -64,17 +41,201 @@ curandState* get_device_rand(int size, gsl_rng* rng){
     return cu_rng;
 }
 
+/* ---------------------------------------------------- **
+** ----------------- allocate memory ------------------ **
+** ---------------------------------------------------- */
+
+static int Nstream;
+static int Nsite;
+static int Nj,Nq;
+static double Beta;
+static int* d_Length;
+static int* d_Noo;
+static int* d_Sequence;
+static int* d_Linkv;
+static int* d_Sigma0;
+static int* d_Sigmap;
+static int* d_Vfirst;
+static int* d_Vlast;
+static int* d_Bond2index;
+static double* d_Bondst;
+static curandState* d_Curng;
+
+void device_create_placeholder(int nstream, int length, int nsite, int nj, int nq, double beta, gsl_rng* rng){
+    Nstream = nstream;
+    Nsite = nsite;
+    Nj = nj;
+    Nq = Nq;
+    Beta = beta;
+    int noo=0;
+
+    cudaMalloc(&d_Length,sizeof(int));
+    cudaMalloc(&d_Noo,sizeof(int));
+    cudaMalloc(&d_Sequence,length*sizeof(int));
+    cudaMalloc(&d_Linkv,8*length*sizeof(int));
+    cudaMalloc(&d_Sigma0,nstream*nsite*sizeof(int));
+    cudaMalloc(&d_Sigmap,nstream*nsite*sizeof(int));
+    cudaMalloc(&d_Vfirst,nstream*nsite*sizeof(int));
+    cudaMalloc(&d_Vlast,nstream*nsite*sizeof(int));
+    cudaMalloc(&d_Bond2index,4*(nj+nq)*sizeof(int));
+    cudaMalloc(&d_Bondst,(nj+nq)*sizeof(double));
+
+    int* sequence = (int*)malloc(length*sizeof(int));
+    int* linkv    = (int*)malloc(8*length*sizeof(int));
+    int* sigma0   = (int*)malloc(nstream*nsite*sizeof(int));
+    int* sigmap   = (int*)malloc(nstream*nsite*sizeof(int));
+    int* vfirst   = (int*)malloc(nstream*nsite*sizeof(int));
+    int* vlast    = (int*)malloc(nstream*nsite*sizeof(int));
+    for(int i=0;i<length;++i) sequence[i]=-1;
+    for(int i=0;i<8*length;++i) linkv[i]=-1;
+    for(int i=0;i<nsite;++i){
+        int spin;
+        if(gsl_rng_uniform_pos(rng)<0.5) spin=1;
+        else spin=-1;
+        for(int j=0;j<nstream;++j){
+            sigma0[j*nsite+i] = spin;
+            sigmap[j*nsite+i] = spin;
+            vfirst[j*nsite+i] = -1;
+            vlast[j*nsite+i] = -1;
+        }
+    }
+    
+
+    cudaMemcpy(d_Length,&length,sizeof(int),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Noo,&noo,sizeof(int),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sequence,sequence,length*sizeof(int),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Linkv,linkv,8*length*sizeof(int),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sigma0,sigma0,nstream*nsite*sizeof(int),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Sigmap,sigmap,nstream*nsite*sizeof(int),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Vfirst,vfirst,nstream*nsite*sizeof(int),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Vlast,vlast,nstream*nsite*sizeof(int),cudaMemcpyHostToDevice);
+
+    d_Curng = get_device_rand(nstream,rng);
+
+    free(sequence);
+    free(linkv);
+    free(sigma0);
+    free(sigmap);
+    free(vfirst);
+    free(vlast);
+}
+
+void device_destroy_placeholder(){
+    if(d_Length!=NULL) cudaFree(d_Length);
+    if(d_Noo!=NULL) cudaFree(d_Noo);
+    if(d_Sequence!=NULL) cudaFree(d_Sequence);
+    if(d_Linkv!=NULL) cudaFree(d_Linkv);
+    if(d_Sigma0!=NULL) cudaFree(d_Sigma0);
+    if(d_Sigmap!=NULL) cudaFree(d_Sigmap);
+    if(d_Vfirst!=NULL) cudaFree(d_Vfirst);
+    if(d_Vlast!=NULL) cudaFree(d_Vlast);
+    if(d_Bond2index!=NULL) cudaFree(d_Bond2index);
+    if(d_Bondst!=NULL) cudaFree(d_Bondst);
+}
+
+/* ---------------------------------------------------- **
+** ------------------ SSE algorithm ------------------- **
+** ---------------------------------------------------- */
+
+__global__ void device_diagonal_update(int nstream, int nsite, int nj, int nq, double beta, int is, int* d_length, int* d_noo, int* d_sequence, int* d_sigma0, int* d_sigmap, int* d_bond2index, double* d_bondst, curandState* d_curng){
+    int id = blockIdx.x*blockDim.x+threadIdx.x;
+    if(id<nstream){
+        int p_max = (int)(*d_length*(id+1)/nstream);
+        int p_min = (int)(*d_length*id/nstream);
+        int i,p,i_bond,s1,s2,s3,s4;
+        double dis;
+
+        for(i=0;i<nsite;++i) d_sigmap[id*nsite+i]=d_sigma0[id*nsite+i];
+
+        if(id==is){
+            for(p=p_min;p<p_max;++p){
+                i_bond = (int)curand_uniform_double(&d_curng[id]);
+                s1 = d_sigmap[id*nsite+d_bond2index[i_bond*4+0]];
+                s2 = d_sigmap[id*nsite+d_bond2index[i_bond*4+1]];
+                s3 = d_sigmap[id*nsite+d_bond2index[i_bond*4+2]];
+                s4 = d_sigmap[id*nsite+d_bond2index[i_bond*4+3]];
+                if(i_bond<nj && s1!=s2){
+                    
+                }
+            }
+        }
+        else{
+        }
+    }
+}
+
+/* ---------------------------------------------------- **
+** ------------------ set the model ------------------- **
+** ---------------------------------------------------- */
+
+
+void device_set_lattice_jq_isotropy_2d(int nstream, int length, int nx, int ny, double jbond, double beta, gsl_rng* rng){
+    int i,j,t,q;
+    Beta = beta;
+    Nsite = nx*ny;
+    Nj = 2*Nsite;
+    Nq = 2*Nsite;
+
+    int* bond2index = (int*)malloc((Nj+Nq)*4*sizeof(int));
+    double* bondst = (double*)malloc((Nj+Nq)*sizeof(double));
+
+    for(int i_bond=0;i_bond<(Nj+Nq);++i_bond){
+        t = i_bond%Nsite;
+        q = i_bond/Nsite;
+        i = t%nx;
+        j = t/nx;
+
+        if(q==0){
+            bond2index[i_bond*4+0] = i+nx*j;
+            bond2index[i_bond*4+1] = ((i+1)%nx)+nx*j;
+            bond2index[i_bond*4+2] = -1;
+            bond2index[i_bond*4+3] = -1;
+            bondst[i_bond] = jbond;
+        }
+        else if(q==1){
+            bond2index[i_bond*4+0] = i+nx*j;
+            bond2index[i_bond*4+1] = i+nx*((j+1)%ny);
+            bond2index[i_bond*4+2] = -1;
+            bond2index[i_bond*4+3] = -1;
+            bondst[i_bond] = jbond;
+        }
+        else if(q==2){
+            bond2index[i_bond*4+0] = i+nx*j;
+            bond2index[i_bond*4+1] = ((i+1)%nx)+nx*j;
+            bond2index[i_bond*4+2] = i+nx*((j+1)%ny);
+            bond2index[i_bond*4+3] = ((i+1)%nx)+nx*((j+1)%ny);
+            bondst[i_bond] = 1.0;
+        }
+        else if(q==3){
+            bond2index[i_bond*4+0] = i+nx*j;
+            bond2index[i_bond*4+1] = i+nx*((j+1)%ny);
+            bond2index[i_bond*4+2] = ((i+1)%nx)+nx*j;
+            bond2index[i_bond*4+3] = ((i+1)%nx)+nx*((j+1)%ny);
+            bondst[i_bond] = 1.0;
+        }
+    }
+
+    device_create_placeholder(nstream,length,Nsite,Nj,Nq,Beta,rng);
+    cudaMemcpy(d_Bond2index,bond2index,4*(Nj+Nq)*sizeof(int),cudaMemcpyHostToDevice);
+    cudaMemcpy(d_Bondst,bondst,(Nj+Nq)*sizeof(double),cudaMemcpyHostToDevice);
+}
+
 int main()
 {
-    int size=1024;
+    int nstream=2048;
+    int length=1000000;
+    int nx=256;
+    int ny=256;
+    double beta=20.0;
+    double jbond=1.0;
     int seed=219871;
     gsl_rng* rng = gsl_rng_alloc(gsl_rng_mt19937);
     gsl_rng_set(rng,seed);
 
-    curandState* cu_rng = get_device_rand(size,rng);
+    device_set_lattice_jq_isotropy_2d(nstream,length,nx,ny,jbond,beta,rng);
 
     gsl_rng_free(rng);
-    cudaFree(cu_rng);
+    device_destroy_placeholder();
 
     printf("%s\n",cudaGetErrorName(cudaGetLastError()));
 }
