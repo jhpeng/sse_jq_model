@@ -90,11 +90,13 @@ gsl_rng* rng;
 ** -------------------------------------------------- */
 
 void propagate_state(int sp){
-    int i_bond = sp/6;
-    int type   = sp%6;
+    if(sp==-1) return;
 
-    if(sp==-1 || type==0 || type==2) return;
-    else if(type==1 || type==4){
+    int type   = sp%6;
+    if(type==0 || type==2) return;
+    
+    int i_bond = sp/6;
+    if(type==1 || type==4){
         Sigmap[Bond2index[i_bond*4+0]] *= -1;
         Sigmap[Bond2index[i_bond*4+1]] *= -1;
     }
@@ -154,6 +156,57 @@ void diagonal_update(){
             if(Beta*(Nj+Nq)*Bondst[i_bond]*dis<4*(L-Noo+1)){
                 Sequence[p]=-1;
                 Noo--;
+            }
+        }
+        else propagate_state(Sequence[p]);
+    }
+}
+
+void diagonal_update_exchange(){
+    int i_bond,s1,s2,s3,s4;
+    double dis;
+
+    for(int i=0;i<Nsite;++i){
+        Sigmap[i] = Sigma0[i];
+    }
+
+    for(int p=0;p<L;++p){
+        if(Sequence[p]%6==0){
+            i_bond = (int)(gsl_rng_uniform_pos(rng)*(Nj+Nq));
+            s1 = Sigmap[Bond2index[i_bond*4+0]];
+            s2 = Sigmap[Bond2index[i_bond*4+1]];
+            s3 = Sigmap[Bond2index[i_bond*4+2]];
+            s4 = Sigmap[Bond2index[i_bond*4+3]];
+            if(i_bond<Nj && s1!=s2){
+                dis = gsl_rng_uniform_pos(rng);
+                if(dis*Bondst[Sequence[p]/6]<Bondst[i_bond]){
+                    Sequence[p] = i_bond*6;
+                }
+            }
+            else if(s1!=s2 && s3!=s4){
+                dis = gsl_rng_uniform_pos(rng);
+                if(dis*Bondst[Sequence[p]/6]*2<Bondst[i_bond]){
+                    Sequence[p] = i_bond*6+2;
+                }
+            }
+        }
+        else if(Sequence[p]%6==2){
+            i_bond = (int)(gsl_rng_uniform_pos(rng)*(Nj+Nq));
+            s1 = Sigmap[Bond2index[i_bond*4+0]];
+            s2 = Sigmap[Bond2index[i_bond*4+1]];
+            s3 = Sigmap[Bond2index[i_bond*4+2]];
+            s4 = Sigmap[Bond2index[i_bond*4+3]];
+            if(i_bond<Nj && s1!=s2){
+                dis = gsl_rng_uniform_pos(rng);
+                if(dis*Bondst[Sequence[p]/6]<Bondst[i_bond]*2){
+                    Sequence[p] = i_bond*6;
+                }
+            }
+            else if(s1!=s2 && s3!=s4){
+                dis = gsl_rng_uniform_pos(rng);
+                if(dis*Bondst[Sequence[p]/6]<Bondst[i_bond]){
+                    Sequence[p] = i_bond*6+2;
+                }
             }
         }
         else propagate_state(Sequence[p]);
@@ -374,9 +427,6 @@ void set_sequence_length(int length){
 
     if(Linkv!=NULL) free(Linkv);
     Linkv = (int*)malloc(8*length*sizeof(int));
-    for(int i=0;i<(8*length);++i){
-        Linkv[i]=-1;
-    }
 
     L = length;
 }
@@ -394,11 +444,11 @@ void set_estimator(int n_obs, int n_sample, int n_block){
 ** ------------------ getopt --------------------- **
 ** ----------------------------------------------- */ 
 
-int Help;
+int Help,Exc=0;
 void set_opt(int argc, char **argv)
 {
     int c;
-    while((c=getopt(argc,argv,"hx:y:j:b:n:k:t:s:f:"))!=-1){
+    while((c=getopt(argc,argv,"hx:y:j:b:n:k:t:s:f:e:"))!=-1){
         switch(c){
             case 'h':
                 Help=1;
@@ -441,7 +491,9 @@ void set_opt(int argc, char **argv)
             case 'f':
                 strcpy(Filename,optarg);
                 break;
-
+            case 'm':
+                Exc=atoi(optarg);
+                break;
         }
     }
 }
@@ -456,7 +508,7 @@ int main(int argc, char** argv){
     int n_obs=4;
     double buffer=1.3;
 
-    Beta = 512;
+    Beta = 4096;
     Seed = 9237912;
     Nx = 48;
     Ny = 48;
@@ -475,6 +527,7 @@ int main(int argc, char** argv){
     /*---------------Thermalization--------------*/
     for(int i_sample=0;i_sample<Nther;++i_sample){
         diagonal_update();
+        if(Exc) diagonal_update_exchange();
         construct_link_vertex_list();
         loop_update();
         flip_bit_operator();
@@ -489,6 +542,7 @@ int main(int argc, char** argv){
     for(int k=0;k<Nblock;++k){
         for(int i_sample=0;i_sample<Nsample;++i_sample){
             diagonal_update();
+            if(Exc) diagonal_update_exchange();
             construct_link_vertex_list();
             loop_update();
             flip_bit_operator();
