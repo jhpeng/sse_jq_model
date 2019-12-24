@@ -59,7 +59,7 @@ int* Vlast;
 ** Nj : the total number of the J-bonds
 ** Nq : the totla number of the Q-bond-pairs
 ** Bond2index : the pointer which mapping the bond on four spin site
-** Bondst : the pointer tp the bond strenght
+** Bondst : the pointer to the bond strenght
 */
 int Nx,Ny,Nz;
 int Nj,Nq;
@@ -444,11 +444,11 @@ void set_estimator(int n_obs, int n_sample, int n_block){
 ** ------------------ getopt --------------------- **
 ** ----------------------------------------------- */ 
 
-int Help,Exc=0;
+int Help;
 void set_opt(int argc, char **argv)
 {
     int c;
-    while((c=getopt(argc,argv,"hx:y:j:b:n:k:t:s:f:e:"))!=-1){
+    while((c=getopt(argc,argv,"hx:y:j:b:n:k:t:s:f:"))!=-1){
         switch(c){
             case 'h':
                 Help=1;
@@ -491,9 +491,6 @@ void set_opt(int argc, char **argv)
             case 'f':
                 strcpy(Filename,optarg);
                 break;
-            case 'm':
-                Exc=atoi(optarg);
-                break;
         }
     }
 }
@@ -527,7 +524,6 @@ int main(int argc, char** argv){
     /*---------------Thermalization--------------*/
     for(int i_sample=0;i_sample<Nther;++i_sample){
         diagonal_update();
-        if(Exc) diagonal_update_exchange();
         construct_link_vertex_list();
         loop_update();
         flip_bit_operator();
@@ -542,7 +538,6 @@ int main(int argc, char** argv){
     for(int k=0;k<Nblock;++k){
         for(int i_sample=0;i_sample<Nsample;++i_sample){
             diagonal_update();
-            if(Exc) diagonal_update_exchange();
             construct_link_vertex_list();
             loop_update();
             flip_bit_operator();

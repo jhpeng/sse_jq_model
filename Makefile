@@ -5,7 +5,7 @@
 CC	= gcc
 
 # define any compile-time flags
-CFLAGS = -Wall -g -fPIC -O0 -std=c99
+CFLAGS = -Wall -g -fPIC -O3 -std=c99
 
 # define openmp flags
 OPENMP  = -fopenmp
