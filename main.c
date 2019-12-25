@@ -77,12 +77,17 @@ char Filename[128]="test.txt";
 
 /*
 ** Nblock  : the total number of the block data
-** Beta : inverse temperature
-** rng  : gsl_rng
+** Beta    : inverse temperature
+** rng     : gsl_rng
+** Mode    : the mode for calculate observable
+**             0 -> normal scheme
+**             1 -> beta doubling
 */
 int Nblock,Nther,Seed;
-double Beta,Jbond,Qbond;
+double Beta,Jbond,Qbond,P;
 gsl_rng* rng;
+int Mode,LatticeType;
+int Nit;
 
 
 /* -------------------------------------------------- **
@@ -295,6 +300,22 @@ void flip_bit_operator(){
 }
 
 
+void beta_doubling(){
+    int* seq = (int*)malloc(2*L*sizeof(int));
+    for(int i=0;i<2*L;++i){
+        seq[i] = Sequence[i%L];
+    }
+    free(Sequence);
+    free(Linkv);
+
+    Sequence = seq;
+    Linkv = (int*)malloc(16*L*sizeof(int));
+
+    Noo  *=2;
+    L    *=2;
+    Beta *=2;
+}
+
 
 /* --------------------------------------------------------- **
 ** ----------------------- Estimator ----------------------- **
@@ -349,6 +370,82 @@ void measure_mz(int i_obs, int i_sample){
 void set_random_number(int seed){
     rng = gsl_rng_alloc(gsl_rng_mt19937);
     gsl_rng_set(rng,seed);
+}
+
+void set_lattice_diluted_bilayer_2d(int nx, int ny, double jbond, double p){
+    int i,j,t,q,index1,index2;
+    Nsite = 2*nx*ny;
+    Nj    = 5*nx*ny;
+    Nq    = 0;
+
+    Sigma0 = (int*)malloc(Nsite*sizeof(int));
+    Sigmap = (int*)malloc(Nsite*sizeof(int));
+    Vfirst = (int*)malloc(Nsite*sizeof(int));
+    Vlast  = (int*)malloc(Nsite*sizeof(int));
+
+    Bond2index = (int*)malloc((Nj+Nq)*4*sizeof(int));
+    Bondst = (double*)malloc((Nj+Nq)*sizeof(double));
+
+    int* epsilon = (int*)malloc(nx*ny*sizeof(int));
+    for(i=0;i<nx*ny;++i){
+        if(gsl_rng_uniform_pos(rng)<p) epsilon[i] = 0;
+        else epsilon[i] = 1;
+    }
+
+    for(int i_bond=0;i_bond<(Nj+Nq);++i_bond){
+        t = i_bond%(nx*ny);
+        q = i_bond/(nx*ny);
+        i = t%nx;
+        j = t/nx;
+
+        if(q==0){
+            index1 = i+nx*j;
+            index2 = ((i+1)%nx)+nx*j;
+            Bond2index[i_bond*4+0] = index1;
+            Bond2index[i_bond*4+1] = index2;
+            Bond2index[i_bond*4+2] = -1;
+            Bond2index[i_bond*4+3] = -1;
+            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = 1;
+        }
+        else if(q==1){
+            index1 = i+nx*j;
+            index2 = i+nx*((j+1)%ny);
+            Bond2index[i_bond*4+0] = index1;
+            Bond2index[i_bond*4+1] = index2;
+            Bond2index[i_bond*4+2] = -1;
+            Bond2index[i_bond*4+3] = -1;
+            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = 1;
+        }
+        else if(q==2){
+            index1 = i+nx*j;
+            index2 = ((i+1)%nx)+nx*j;
+            Bond2index[i_bond*4+0] = index1;
+            Bond2index[i_bond*4+1] = index2;
+            Bond2index[i_bond*4+2] = -1;
+            Bond2index[i_bond*4+3] = -1;
+            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = 1;
+        }
+        else if(q==3){
+            index1 = i+nx*j;
+            index2 = i+nx*((j+1)%ny);
+            Bond2index[i_bond*4+0] = index1;
+            Bond2index[i_bond*4+1] = index2;
+            Bond2index[i_bond*4+2] = -1;
+            Bond2index[i_bond*4+3] = -1;
+            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = 1;
+        }
+        else if(q==1){
+            index1 = i+nx*j;
+            index2 = i+nx*j+nx*ny;
+            Bond2index[i_bond*4+0] = index1;
+            Bond2index[i_bond*4+1] = index2;
+            Bond2index[i_bond*4+2] = -1;
+            Bond2index[i_bond*4+3] = -1;
+            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = jbond;
+        }
+    }
+
+    free(epsilon);
 }
 
 void set_lattice_jq_isotropy_2d(int nx, int ny, double jbond){
@@ -448,12 +545,20 @@ int Help;
 void set_opt(int argc, char **argv)
 {
     int c;
-    while((c=getopt(argc,argv,"hx:y:j:b:n:k:t:s:f:"))!=-1){
+    while((c=getopt(argc,argv,"hx:y:j:b:n:k:t:s:f:m:l:p:"))!=-1){
         switch(c){
             case 'h':
                 Help=1;
                 printf("usage:\n");
-                printf("\t-h help\n");
+                printf("\t-h print this help\n");
+                printf("\t-l lattice type for the simulation\n");
+                printf("\t\t 0 : 2d isotropy jq model\n");
+                printf("\t\t 1 : diluted bilayer heisenberg model\n");
+                printf("\t-m mode for calculate observable\n");
+                printf("\t\t 0 : normal scheme\n");
+                printf("\t\t 1 : beta-doubling scheme\n");
+                printf("\t\t 2 : beta increasing scheme\n");
+                printf("\t\t 3 : beta increasing scheme without propagate state\n");
                 printf("\t-x <length of x> default 8\n");
                 printf("\t-y <length of y> default 8\n");
                 printf("\t-j <J/Q ratio> default 1.0\n");
@@ -461,8 +566,15 @@ void set_opt(int argc, char **argv)
                 printf("\t-n <Nsample> default 2000\n");
                 printf("\t-k <Nblock> default 50\n");
                 printf("\t-t <Nther> default 2000\n");
+                printf("\t-e number of iteration for beta-doubing scheme\n");
                 printf("\t-s <seed of random number generator> default 1\n");
                 printf("\t-f <the file name of output data> default \"test.txt\"\n");
+                break;
+            case 'l':
+                LatticeType=atoi(optarg);
+                break;
+            case 'm':
+                Mode=atoi(optarg);
                 break;
             case 'x':
                 Nx=atoi(optarg);
@@ -472,6 +584,9 @@ void set_opt(int argc, char **argv)
                 break;
             case 'j':
                 Jbond=atof(optarg);
+                break;
+            case 'p':
+                P=atof(optarg);
                 break;
             case 'b':
                 Beta=atof(optarg);
@@ -484,6 +599,9 @@ void set_opt(int argc, char **argv)
                 break;
             case 't':
                 Nther=atoi(optarg);
+                break;
+            case 'e':
+                Nit=atoi(optarg);
                 break;
             case 's':
                 Seed=atoi(optarg);
@@ -505,47 +623,98 @@ int main(int argc, char** argv){
     int n_obs=4;
     double buffer=1.3;
 
+    /*--------------default value----------------*/
     Beta = 4096;
     Seed = 9237912;
     Nx = 48;
     Ny = 48;
     Jbond = 0.04;
+    P = 0;
     Nther = 20000;
     Nsample = 2000;
     Nblock = 50;
+    Mode = 0;
+    LatticeType = 0;
+    Nit = 5;
 
+
+
+
+    /*-------------setting lattice---------------*/
     set_opt(argc,argv);
     if(Help) return 0;
 
     set_random_number(Seed);
-    set_lattice_jq_isotropy_2d(Nx,Ny,Jbond);
-    set_sequence_length(length);
-    
-    /*---------------Thermalization--------------*/
-    for(int i_sample=0;i_sample<Nther;++i_sample){
-        diagonal_update();
-        construct_link_vertex_list();
-        loop_update();
-        flip_bit_operator();
-        if(Noo*buffer>length){
-            length = (int)(Noo*buffer)+10;
-            set_sequence_length(length);
-        }
-    }
 
-    /*---------------Measurement-----------------*/
-    set_estimator(n_obs,Nsample,Nblock);
-    for(int k=0;k<Nblock;++k){
-        for(int i_sample=0;i_sample<Nsample;++i_sample){
+    if(LatticeType==0) set_lattice_jq_isotropy_2d(Nx,Ny,Jbond);
+    else if(LatticeType==1) set_lattice_diluted_bilayer_2d(Nx,Ny,Jbond,P);
+    set_sequence_length(length);
+
+
+
+/**************************************************************/
+/*********************** Normal Scheme ************************/
+/**************************************************************/
+    if(Mode==0){
+        /*---------------Thermalization--------------*/
+        for(int i_sample=0;i_sample<Nther;++i_sample){
             diagonal_update();
             construct_link_vertex_list();
             loop_update();
             flip_bit_operator();
-
-            measure_mz(0,i_sample);
+            if(Noo*buffer>length){
+                length = (int)(Noo*buffer)+10;
+                set_sequence_length(length);
+            }
         }
-        estimator_fileout(Filename);
+
+        /*---------------Measurement-----------------*/
+        set_estimator(n_obs,Nsample,Nblock);
+        for(int k=0;k<Nblock;++k){
+            for(int i_sample=0;i_sample<Nsample;++i_sample){
+                diagonal_update();
+                construct_link_vertex_list();
+                loop_update();
+                flip_bit_operator();
+
+                measure_mz(0,i_sample);
+            }
+            estimator_fileout(Filename);
+        }
     }
-    
+/**************************************************************/
+/******************** Beta-doubling Scheme ********************/
+/**************************************************************/
+    else if(Mode==1){
+        for(int it=0;it<2*Nit;++it){
+            /*---------------Thermalization--------------*/
+            for(int i_sample=0;i_sample<Nther;++i_sample){
+                diagonal_update();
+                construct_link_vertex_list();
+                loop_update();
+                flip_bit_operator();
+                if(Noo*buffer>length){
+                    length = (int)(Noo*buffer)+10;
+                    set_sequence_length(length);
+                }
+            }
+
+            /*---------------Measurement-----------------*/
+            set_estimator(n_obs,Nsample,Nblock);
+            for(int k=0;k<Nblock;++k){
+                for(int i_sample=0;i_sample<Nsample;++i_sample){
+                    diagonal_update();
+                    construct_link_vertex_list();
+                    loop_update();
+                    flip_bit_operator();
+
+                    measure_mz(0,i_sample);
+                }
+                estimator_fileout(Filename);
+            }
+            if(it%2==1) beta_doubling();
+        }
+    }
+
     return 0;
 }
