@@ -324,9 +324,31 @@ void estimator_fileout(char* filename){
     double mean[Nobs];
     calc_mean(mean);
 
+    int Ma=0;
+    int Mb=0;
+    int Dx=0;
+    int Dy=0;
+    for(int j=0;j<Ny;j++){
+        for(int i=0;i<Nx;i++){
+            if((i+j)%2){
+                Ma += Sigma0[i+j*Nx];
+                Dx += Sigma0[i+j*Nx]*Sigma0[(i+1)%Nx+j*Nx];
+                Dy += Sigma0[i+j*Nx]*Sigma0[i+((j+1)%Ny)*Nx];
+            } else {
+                Mb += Sigma0[i+j*Nx];
+                Dx -= Sigma0[i+j*Nx]*Sigma0[(i+1)%Nx+j*Nx];
+                Dy -= Sigma0[i+j*Nx]*Sigma0[i+((j+1)%Ny)*Nx];
+            }
+        }
+    }
+
     FILE* ofile = fopen(filename,"a");
     fprintf(ofile,"%.5e ",Beta);
     for(int i=0;i<Nobs;++i) fprintf(ofile,"%.16e ",mean[i]);
+    fprintf(ofile,"%d ",Ma);
+    fprintf(ofile,"%d ",Mb);
+    fprintf(ofile,"%d ",Dx);
+    fprintf(ofile,"%d ",Dy);
     fprintf(ofile,"\n");
     fclose(ofile);
 }
