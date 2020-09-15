@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <getopt.h>
 #include <string.h>
+#include <math.h>
 #include <gsl/gsl_rng.h>
 
 /*
@@ -9,28 +10,36 @@
 */
 
 /* The flip rule is the instruction for flipping operator.
-**   | 0 | 1 | 2 | 3 | 4 | 5
-------------------------------
-** a | 1 | 0 | 4 | 5 | 2 | 3
-** b | 0 | 1 | 3 | 2 | 5 | 4
-** c | 1 | 0 | 4 | 5 | 2 | 3
-** d | 0 | 1 | 3 | 2 | 5 | 4
+**   | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
+----------------------------------------------
+** a | 1 | 0 | 3 | 2 | 6 | 7 | 4 | 5 | 9 | 8 |
+** b | 0 | 1 | 4 | 6 | 2 | 8 | 3 | 9 | 5 | 7 |
+** c | 0 | 1 | 5 | 7 | 8 | 2 | 9 | 3 | 4 | 6 |
+** d | 1 | 0 | 3 | 2 | 6 | 7 | 4 | 5 | 9 | 8 |
+** e | 0 | 1 | 4 | 6 | 2 | 8 | 3 | 9 | 5 | 7 |
+** f | 0 | 1 | 5 | 7 | 8 | 2 | 9 | 3 | 4 | 6 |
 **
 **
-**  |    |        |    |
-** c|   c|       d|   d| 
-** --------      --------
-** |\\\\\\|------|\\\\\\|
-** --------      --------
-**  |    |        |    |
-** a|   a|       b|   b|
 **
+**
+**  |    |        |    |        |    |
+** d|   d|       e|   e|       f|   f|
+** --------      --------      --------
+** |\\\\\\|------|\\\\\\|------|\\\\\\|
+** --------      --------      --------
+**  |    |        |    |        |    |
+** a|   a|       b|   b|       c|   c|
+**
+** label : 0   1   2   3   4   5   6   7   8   9
+** type  : d   o   ddd odd dod ddo ood odo doo ooo
 */
-static int flip_rule[24]={
-    1,0,4,5,2,3,
-    0,1,3,2,5,4,
-    1,0,4,5,2,3,
-    0,1,3,2,5,4};
+static int flip_rule[60]={
+    1,0,3,2,6,7,4,5,9,8,
+    0,1,4,6,2,8,3,9,5,7,
+    0,1,5,7,8,2,9,3,4,6,
+    1,0,3,2,6,7,4,5,9,8,
+    0,1,4,6,2,8,3,9,5,7,
+    0,1,5,7,8,2,9,3,4,6};
 
 /*
 ** L   : total length of the operator sequence
@@ -94,31 +103,41 @@ int Nit;
 ** ---------------- SSE algorithm ------------------- **
 ** -------------------------------------------------- */
 
+int propagate_rule[60]={ 
+     1, 1, 1, 1, 1, 1,
+    -1,-1, 1, 1, 1, 1,
+     1, 1, 1, 1, 1, 1,
+    -1,-1, 1, 1, 1, 1,
+     1, 1,-1,-1, 1, 1,
+     1, 1, 1, 1,-1,-1,
+    -1,-1,-1,-1, 1, 1,
+    -1,-1, 1, 1,-1,-1,
+     1, 1,-1,-1,-1,-1,
+    -1,-1,-1,-1,-1,-1};
+
 void propagate_state(int sp){
     if(sp==-1) return;
 
-    int type   = sp%6;
+    int type   = sp%10;
     if(type==0 || type==2) return;
     
-    int i_bond = sp/6;
-    if(type==1 || type==4){
-        Sigmap[Bond2index[i_bond*4+0]] *= -1;
-        Sigmap[Bond2index[i_bond*4+1]] *= -1;
+    int i_bond = sp/10;
+    if(type==1){
+        Sigmap[Bond2index[i_bond*6+0]] *= -1;
+        Sigmap[Bond2index[i_bond*6+1]] *= -1;
     }
-    else if(type==3){
-        Sigmap[Bond2index[i_bond*4+2]] *= -1;
-        Sigmap[Bond2index[i_bond*4+3]] *= -1;
-    }
-    else if(type==5){
-        Sigmap[Bond2index[i_bond*4+0]] *= -1;
-        Sigmap[Bond2index[i_bond*4+1]] *= -1;
-        Sigmap[Bond2index[i_bond*4+2]] *= -1;
-        Sigmap[Bond2index[i_bond*4+3]] *= -1;
+    else{
+        Sigmap[Bond2index[i_bond*6+0]] *= propagate_rule[type*6+0];
+        Sigmap[Bond2index[i_bond*6+1]] *= propagate_rule[type*6+1];
+        Sigmap[Bond2index[i_bond*6+2]] *= propagate_rule[type*6+2];
+        Sigmap[Bond2index[i_bond*6+3]] *= propagate_rule[type*6+3];
+        Sigmap[Bond2index[i_bond*6+4]] *= propagate_rule[type*6+4];
+        Sigmap[Bond2index[i_bond*6+5]] *= propagate_rule[type*6+5];
     }
 }
 
 void diagonal_update(){
-    int i_bond,s1,s2,s3,s4;
+    int i_bond,s1,s2,s3,s4,s5,s6;
     double dis;
 
     for(int i=0;i<Nsite;++i){
@@ -128,90 +147,47 @@ void diagonal_update(){
     for(int p=0;p<L;++p){
         if(Sequence[p]==-1){
             i_bond = (int)(gsl_rng_uniform_pos(rng)*(Nj+Nq));
-            s1 = Sigmap[Bond2index[i_bond*4+0]];
-            s2 = Sigmap[Bond2index[i_bond*4+1]];
-            s3 = Sigmap[Bond2index[i_bond*4+2]];
-            s4 = Sigmap[Bond2index[i_bond*4+3]];
-            if(i_bond<Nj && s1!=s2){
-                dis = gsl_rng_uniform_pos(rng);
-                if(dis*2*(L-Noo)<Beta*Bondst[i_bond]*(Nj+Nq)){
-                    Sequence[p] = i_bond*6;
-                    Noo++;
+            if(i_bond<Nj){
+                s1 = Sigmap[Bond2index[i_bond*6+0]];
+                s2 = Sigmap[Bond2index[i_bond*6+1]];
+                if(s1!=s2){
+                    dis = gsl_rng_uniform_pos(rng);
+                    if(dis*2*(L-Noo)<Beta*Bondst[i_bond]*(Nj+Nq)){
+                        Sequence[p] = i_bond*10;
+                        Noo++;
+                    }
                 }
             }
-            else if(s1!=s2 && s3!=s4){
-                dis = gsl_rng_uniform_pos(rng);
-                if(dis*4*(L-Noo)<Beta*Bondst[i_bond]*(Nj+Nq)){
-                    Sequence[p] = i_bond*6+2;
-                    Noo++;
+            else {
+                s1 = Sigmap[Bond2index[i_bond*6+0]];
+                s2 = Sigmap[Bond2index[i_bond*6+1]];
+                s3 = Sigmap[Bond2index[i_bond*6+2]];
+                s4 = Sigmap[Bond2index[i_bond*6+3]];
+                s5 = Sigmap[Bond2index[i_bond*6+4]];
+                s6 = Sigmap[Bond2index[i_bond*6+5]];
+                if((s1!=s2 && s3!=s4) && s5!=s6){
+                    dis = gsl_rng_uniform_pos(rng);
+                    if(dis*8*(L-Noo)<Beta*Bondst[i_bond]*(Nj+Nq)){
+                        Sequence[p] = i_bond*10+2;
+                        Noo++;
+                    }
                 }
             }
         }
-        else if(Sequence[p]%6==0){
-            i_bond = Sequence[p]/6;
+        else if(Sequence[p]%10==0){
+            i_bond = Sequence[p]/10;
             dis = gsl_rng_uniform_pos(rng);
             if(Beta*(Nj+Nq)*Bondst[i_bond]*dis<2*(L-Noo+1)){
                 Sequence[p]=-1;
                 Noo--;
             }
         }
-        else if(Sequence[p]%6==2){
-            i_bond = Sequence[p]/6;
+        else if(Sequence[p]%10==2){
+            i_bond = Sequence[p]/10;
             dis = gsl_rng_uniform_pos(rng);
-            if(Beta*(Nj+Nq)*Bondst[i_bond]*dis<4*(L-Noo+1)){
+            if(Beta*(Nj+Nq)*Bondst[i_bond]*dis<8*(L-Noo+1)){
                 Sequence[p]=-1;
                 Noo--;
-            }
-        }
-        else propagate_state(Sequence[p]);
-    }
-}
-
-void diagonal_update_exchange(){
-    int i_bond,s1,s2,s3,s4;
-    double dis;
-
-    for(int i=0;i<Nsite;++i){
-        Sigmap[i] = Sigma0[i];
-    }
-
-    for(int p=0;p<L;++p){
-        if(Sequence[p]%6==0){
-            i_bond = (int)(gsl_rng_uniform_pos(rng)*(Nj+Nq));
-            s1 = Sigmap[Bond2index[i_bond*4+0]];
-            s2 = Sigmap[Bond2index[i_bond*4+1]];
-            s3 = Sigmap[Bond2index[i_bond*4+2]];
-            s4 = Sigmap[Bond2index[i_bond*4+3]];
-            if(i_bond<Nj && s1!=s2){
-                dis = gsl_rng_uniform_pos(rng);
-                if(dis*Bondst[Sequence[p]/6]<Bondst[i_bond]){
-                    Sequence[p] = i_bond*6;
-                }
-            }
-            else if(s1!=s2 && s3!=s4){
-                dis = gsl_rng_uniform_pos(rng);
-                if(dis*Bondst[Sequence[p]/6]*2<Bondst[i_bond]){
-                    Sequence[p] = i_bond*6+2;
-                }
-            }
-        }
-        else if(Sequence[p]%6==2){
-            i_bond = (int)(gsl_rng_uniform_pos(rng)*(Nj+Nq));
-            s1 = Sigmap[Bond2index[i_bond*4+0]];
-            s2 = Sigmap[Bond2index[i_bond*4+1]];
-            s3 = Sigmap[Bond2index[i_bond*4+2]];
-            s4 = Sigmap[Bond2index[i_bond*4+3]];
-            if(i_bond<Nj && s1!=s2){
-                dis = gsl_rng_uniform_pos(rng);
-                if(dis*Bondst[Sequence[p]/6]<Bondst[i_bond]*2){
-                    Sequence[p] = i_bond*6;
-                }
-            }
-            else if(s1!=s2 && s3!=s4){
-                dis = gsl_rng_uniform_pos(rng);
-                if(dis*Bondst[Sequence[p]/6]<Bondst[i_bond]){
-                    Sequence[p] = i_bond*6+2;
-                }
             }
         }
         else propagate_state(Sequence[p]);
@@ -219,7 +195,7 @@ void diagonal_update_exchange(){
 }
 
 void construct_link_vertex_list(){
-    for(int i=0;i<(8*L);++i) Linkv[i]=-1;
+    for(int i=0;i<(12*L);++i) Linkv[i]=-1;
     for(int i=0;i<Nsite;++i){
         Vfirst[i]=-1;
         Vlast[i] =-1;
@@ -228,11 +204,11 @@ void construct_link_vertex_list(){
     int i_bond,index,nu0,nu1;
     for(int p=0;p<L;++p){
         if(Sequence[p]!=-1){
-            i_bond = Sequence[p]/6;
-            for(int i=0;i<4;++i){
-                index = Bond2index[i_bond*4+i];
+            i_bond = Sequence[p]/10;
+            for(int i=0;i<6;++i){
+                index = Bond2index[i_bond*6+i];
                 if(index!=-1){
-                    nu0 = 8*p+i;
+                    nu0 = 12*p+i;
                     nu1 = Vlast[index];
                     if(nu1!=-1){
                         Linkv[nu0] = nu1;
@@ -240,7 +216,7 @@ void construct_link_vertex_list(){
                     }
                     else Vfirst[index] = nu0;
 
-                    Vlast[index] = nu0+4;
+                    Vlast[index] = nu0+6;
                 }
             }
         }
@@ -257,7 +233,7 @@ void construct_link_vertex_list(){
 void loop_update(){
    int nu0,nup,nun,flip=-1;
 
-    for(nu0=0;nu0<(L*8);nu0+=2){
+    for(nu0=0;nu0<(L*12);nu0+=2){
         if(Linkv[nu0]>=0){
             nun = nu0;
             if(gsl_rng_uniform_pos(rng)<0.5) flip=-1;
@@ -273,14 +249,16 @@ void loop_update(){
 }
 
 void flip_bit_operator(){
-    int nu,i_flip_rule,type,i_bond,index;
+    int nu,p,i,i_flip_rule,type,i_bond,index;
     
-    for(nu=0;nu<(8*L);nu+=2){
+    for(nu=0;nu<(12*L);nu+=2){
         if(Linkv[nu]==-2){
-            type = Sequence[nu/8]%6;
-            i_bond = Sequence[nu/8]/6;
-            i_flip_rule = ((nu%8)/2)*6+type;
-            Sequence[nu/8] = i_bond*6+flip_rule[i_flip_rule];
+            p = nu/12;
+            i = nu%12;
+            type = Sequence[p]%10;
+            i_bond = Sequence[p]/10;
+            i_flip_rule = (i/2)*10+type;
+            Sequence[p] = i_bond*10+flip_rule[i_flip_rule];
         }
     }
 
@@ -302,14 +280,17 @@ void flip_bit_operator(){
 
 void beta_doubling(){
     int* seq = (int*)malloc(2*L*sizeof(int));
-    for(int i=0;i<2*L;++i){
+    for(int i=0;i<L;++i){
         seq[i] = Sequence[i%L];
+    }
+    for(int i=0;i<L;++i){
+        seq[i+L] = Sequence[L-i-1];
     }
     free(Sequence);
     free(Linkv);
 
     Sequence = seq;
-    Linkv = (int*)malloc(16*L*sizeof(int));
+    Linkv = (int*)malloc(24*L*sizeof(int));
 
     Noo  *=2;
     L    *=2;
@@ -345,21 +326,38 @@ void estimator_fileout(char* filename){
 
     FILE* ofile = fopen(filename,"a");
     fprintf(ofile,"%.5e ",Beta);
-    for(int i=0;i<Nobs;++i) fprintf(ofile,"%.5e ",mean[i]);
+    for(int i=0;i<Nobs;++i) fprintf(ofile,"%.16e ",mean[i]);
     fprintf(ofile,"\n");
     fclose(ofile);
 }
 
-void measure_mz(int i_obs, int i_sample){
-    double m1,m2,mz=0;
-    for(int i=0;i<Nsite;++i) mz+=Sigma0[i];
+int* stagger_factor;
 
-    m1 = mz*0.5;
-    m2 = mz*mz*0.25;
-    Data[Nobs*i_sample+i_obs+0] = m1;
-    Data[Nobs*i_sample+i_obs+1] = m2*4;
-    Data[Nobs*i_sample+i_obs+2] = m2*Beta/Nsite;
-    Data[Nobs*i_sample+i_obs+3] = m2*Beta*Beta/Nsite;
+void measure_mz(int i_obs, int i_sample){
+    double mz2,ms1,ms2;
+    double mz=0;
+    double ms=0;
+    if(stagger_factor==NULL){
+        stagger_factor = (int*)malloc(sizeof(int)*Nsite);
+        for(int j=0;j<Ny;j++){
+            for(int i=0;i<Nx;i++){
+                stagger_factor[i+j*Nx] = (i+j)%2*2-1;
+            }
+        }
+    }
+    for(int i=0;i<Nsite;++i){
+        mz+=Sigma0[i];
+        ms+=Sigma0[i]*stagger_factor[i];
+    }
+
+
+    mz2 = mz*mz*0.25;
+    ms1 = fabs(ms)*0.5/Nsite;
+    ms2 = ms*ms*0.25/Nsite/Nsite;
+    Data[Nobs*i_sample+i_obs+0] = ms1;
+    Data[Nobs*i_sample+i_obs+1] = ms2;
+    Data[Nobs*i_sample+i_obs+2] = mz2*Beta/Nsite;
+    Data[Nobs*i_sample+i_obs+3] = mz2*Beta*Beta/Nsite;
 }
 
 /* --------------------------------------------------------- **
@@ -372,94 +370,18 @@ void set_random_number(int seed){
     gsl_rng_set(rng,seed);
 }
 
-void set_lattice_diluted_bilayer_2d(int nx, int ny, double jbond, double p){
-    int i,j,t,q,index1,index2;
-    Nsite = 2*nx*ny;
-    Nj    = 5*nx*ny;
-    Nq    = 0;
-
-    Sigma0 = (int*)malloc(Nsite*sizeof(int));
-    Sigmap = (int*)malloc(Nsite*sizeof(int));
-    Vfirst = (int*)malloc(Nsite*sizeof(int));
-    Vlast  = (int*)malloc(Nsite*sizeof(int));
-
-    Bond2index = (int*)malloc((Nj+Nq)*4*sizeof(int));
-    Bondst = (double*)malloc((Nj+Nq)*sizeof(double));
-
-    int* epsilon = (int*)malloc(nx*ny*sizeof(int));
-    for(i=0;i<nx*ny;++i){
-        if(gsl_rng_uniform_pos(rng)<p) epsilon[i] = 0;
-        else epsilon[i] = 1;
-    }
-
-    for(int i_bond=0;i_bond<(Nj+Nq);++i_bond){
-        t = i_bond%(nx*ny);
-        q = i_bond/(nx*ny);
-        i = t%nx;
-        j = t/nx;
-
-        if(q==0){
-            index1 = i+nx*j;
-            index2 = ((i+1)%nx)+nx*j;
-            Bond2index[i_bond*4+0] = index1;
-            Bond2index[i_bond*4+1] = index2;
-            Bond2index[i_bond*4+2] = -1;
-            Bond2index[i_bond*4+3] = -1;
-            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = 1;
-        }
-        else if(q==1){
-            index1 = i+nx*j;
-            index2 = i+nx*((j+1)%ny);
-            Bond2index[i_bond*4+0] = index1;
-            Bond2index[i_bond*4+1] = index2;
-            Bond2index[i_bond*4+2] = -1;
-            Bond2index[i_bond*4+3] = -1;
-            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = 1;
-        }
-        else if(q==2){
-            index1 = i+nx*j;
-            index2 = ((i+1)%nx)+nx*j;
-            Bond2index[i_bond*4+0] = index1;
-            Bond2index[i_bond*4+1] = index2;
-            Bond2index[i_bond*4+2] = -1;
-            Bond2index[i_bond*4+3] = -1;
-            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = 1;
-        }
-        else if(q==3){
-            index1 = i+nx*j;
-            index2 = i+nx*((j+1)%ny);
-            Bond2index[i_bond*4+0] = index1;
-            Bond2index[i_bond*4+1] = index2;
-            Bond2index[i_bond*4+2] = -1;
-            Bond2index[i_bond*4+3] = -1;
-            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = 1;
-        }
-        else if(q==1){
-            index1 = i+nx*j;
-            index2 = i+nx*j+nx*ny;
-            Bond2index[i_bond*4+0] = index1;
-            Bond2index[i_bond*4+1] = index2;
-            Bond2index[i_bond*4+2] = -1;
-            Bond2index[i_bond*4+3] = -1;
-            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = jbond;
-        }
-    }
-
-    free(epsilon);
-}
-
-void set_lattice_jq_isotropy_2d(int nx, int ny, double jbond){
+void set_lattice_jq3_slope_uniform(int nx, int ny, double qbond){
     int i,j,t,q;
     Nsite = nx*ny;
     Nj = 2*Nsite;
-    Nq = 2*Nsite;
+    Nq = 4*Nsite;
 
     Sigma0 = (int*)malloc(Nsite*sizeof(int));
     Sigmap = (int*)malloc(Nsite*sizeof(int));
     Vfirst = (int*)malloc(Nsite*sizeof(int));
     Vlast  = (int*)malloc(Nsite*sizeof(int));
 
-    Bond2index = (int*)malloc((Nj+Nq)*4*sizeof(int));
+    Bond2index = (int*)malloc((Nj+Nq)*6*sizeof(int));
     Bondst = (double*)malloc((Nj+Nq)*sizeof(double));
 
     for(int i_bond=0;i_bond<(Nj+Nq);++i_bond){
@@ -469,32 +391,82 @@ void set_lattice_jq_isotropy_2d(int nx, int ny, double jbond){
         j = t/nx;
 
         if(q==0){
-            Bond2index[i_bond*4+0] = i+nx*j;
-            Bond2index[i_bond*4+1] = ((i+1)%nx)+nx*j;
-            Bond2index[i_bond*4+2] = -1;
-            Bond2index[i_bond*4+3] = -1;
-            Bondst[i_bond] = jbond;
+            Bond2index[i_bond*6+0] = i+nx*j;
+            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
+            Bond2index[i_bond*6+2] = -1;
+            Bond2index[i_bond*6+3] = -1;
+            Bond2index[i_bond*6+4] = -1;
+            Bond2index[i_bond*6+5] = -1;
+            Bondst[i_bond] = 1.0;
         }
         else if(q==1){
-            Bond2index[i_bond*4+0] = i+nx*j;
-            Bond2index[i_bond*4+1] = i+nx*((j+1)%ny);
-            Bond2index[i_bond*4+2] = -1;
-            Bond2index[i_bond*4+3] = -1;
-            Bondst[i_bond] = jbond;
+            Bond2index[i_bond*6+0] = i+nx*j;
+            Bond2index[i_bond*6+1] = i+nx*((j+1)%ny);
+            Bond2index[i_bond*6+2] = -1;
+            Bond2index[i_bond*6+3] = -1;
+            Bond2index[i_bond*6+4] = -1;
+            Bond2index[i_bond*6+5] = -1;
+            Bondst[i_bond] = 1.0;
         }
         else if(q==2){
-            Bond2index[i_bond*4+0] = i+nx*j;
-            Bond2index[i_bond*4+1] = ((i+1)%nx)+nx*j;
-            Bond2index[i_bond*4+2] = i+nx*((j+1)%ny);
-            Bond2index[i_bond*4+3] = ((i+1)%nx)+nx*((j+1)%ny);
-            Bondst[i_bond] = 1.0;
+            /*
+            ** o o o o
+            ** o o o-o
+            ** o o-o o
+            ** o-o o o
+            */
+            Bond2index[i_bond*6+0] = i+nx*j;
+            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
+            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j+1)%ny);
+            Bond2index[i_bond*6+3] = ((i+2)%nx)+nx*((j+1)%ny);
+            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j+2)%ny);
+            Bond2index[i_bond*6+5] = ((i+3)%nx)+nx*((j+2)%ny);
+            Bondst[i_bond] = qbond;
         }
         else if(q==3){
-            Bond2index[i_bond*4+0] = i+nx*j;
-            Bond2index[i_bond*4+1] = i+nx*((j+1)%ny);
-            Bond2index[i_bond*4+2] = ((i+1)%nx)+nx*j;
-            Bond2index[i_bond*4+3] = ((i+1)%nx)+nx*((j+1)%ny);
-            Bondst[i_bond] = 1.0;
+            /*
+            ** o o o o
+            ** o-o o o
+            ** o o-o o
+            ** o o o-o
+            */
+            Bond2index[i_bond*6+0] = i+nx*j;
+            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
+            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j-1+ny)%ny);
+            Bond2index[i_bond*6+3] = ((i+2)%nx)+nx*((j-1+ny)%ny);
+            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j-2+ny)%ny);
+            Bond2index[i_bond*6+5] = ((i+3)%nx)+nx*((j-2+ny)%ny);
+            Bondst[i_bond] = qbond;
+        }
+        else if(q==4){
+            /*
+            ** o o | o
+            ** o | | o
+            ** | | o o
+            ** | o o o
+            */
+            Bond2index[i_bond*6+0] = i+nx*j;
+            Bond2index[i_bond*6+1] = ((i+0)%nx)+nx*((j+1+ny)%ny);
+            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j+1+ny)%ny);
+            Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j+2+ny)%ny);
+            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j+2+ny)%ny);
+            Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j+3+ny)%ny);
+            Bondst[i_bond] = qbond;
+        }
+        else if(q==5){
+            /*
+            ** | o o o
+            ** | | o o
+            ** o | | o
+            ** o o | o
+            */
+            Bond2index[i_bond*6+0] = i+nx*j;
+            Bond2index[i_bond*6+1] = ((i+0)%nx)+nx*((j-1+ny)%ny);
+            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j-1+ny)%ny);
+            Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j-2+ny)%ny);
+            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j-2+ny)%ny);
+            Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j-3+ny)%ny);
+            Bondst[i_bond] = qbond;
         }
     }
 
@@ -523,7 +495,7 @@ void set_sequence_length(int length){
     }
 
     if(Linkv!=NULL) free(Linkv);
-    Linkv = (int*)malloc(8*length*sizeof(int));
+    Linkv = (int*)malloc(12*length*sizeof(int));
 
     L = length;
 }
@@ -545,15 +517,14 @@ int Help;
 void set_opt(int argc, char **argv)
 {
     int c;
-    while((c=getopt(argc,argv,"hx:y:j:b:n:k:t:s:f:m:l:p:"))!=-1){
+    while((c=getopt(argc,argv,"hx:y:q:b:n:k:t:s:f:m:l:p:"))!=-1){
         switch(c){
             case 'h':
                 Help=1;
                 printf("usage:\n");
                 printf("\t-h print this help\n");
                 printf("\t-l lattice type for the simulation\n");
-                printf("\t\t 0 : 2d isotropy jq model\n");
-                printf("\t\t 1 : diluted bilayer heisenberg model\n");
+                printf("\t\t 0 : 2d JQ3 model (slope uniform)\n");
                 printf("\t-m mode for calculate observable\n");
                 printf("\t\t 0 : normal scheme\n");
                 printf("\t\t 1 : beta-doubling scheme\n");
@@ -561,7 +532,7 @@ void set_opt(int argc, char **argv)
                 printf("\t\t 3 : beta increasing scheme without propagate state\n");
                 printf("\t-x <length of x> default 8\n");
                 printf("\t-y <length of y> default 8\n");
-                printf("\t-j <J/Q ratio> default 1.0\n");
+                printf("\t-q <Q3/J ratio> default 1.0\n");
                 printf("\t-b <beta> default 4.0\n");
                 printf("\t-n <Nsample> default 2000\n");
                 printf("\t-k <Nblock> default 50\n");
@@ -582,8 +553,8 @@ void set_opt(int argc, char **argv)
             case 'y':
                 Ny=atoi(optarg);
                 break;
-            case 'j':
-                Jbond=atof(optarg);
+            case 'q':
+                Qbond=atof(optarg);
                 break;
             case 'p':
                 P=atof(optarg);
@@ -628,7 +599,7 @@ int main(int argc, char** argv){
     Seed = 9237912;
     Nx = 48;
     Ny = 48;
-    Jbond = 0.04;
+    Qbond = 1.0;
     P = 0;
     Nther = 20000;
     Nsample = 2000;
@@ -646,8 +617,7 @@ int main(int argc, char** argv){
 
     set_random_number(Seed);
 
-    if(LatticeType==0) set_lattice_jq_isotropy_2d(Nx,Ny,Jbond);
-    else if(LatticeType==1) set_lattice_diluted_bilayer_2d(Nx,Ny,Jbond,P);
+    if(LatticeType==0) set_lattice_jq3_slope_uniform(Nx,Ny,Qbond);
     set_sequence_length(length);
 
 
