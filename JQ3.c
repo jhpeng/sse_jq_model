@@ -334,7 +334,7 @@ void estimator_fileout(char* filename){
 int* stagger_factor;
 
 void measure_mz(int i_obs, int i_sample){
-    double mz2,ms1,ms2;
+    double mz2,ms1,ms2,d2;
     double mz=0;
     double ms=0;
     if(stagger_factor==NULL){
@@ -350,14 +350,33 @@ void measure_mz(int i_obs, int i_sample){
         ms+=Sigma0[i]*stagger_factor[i];
     }
 
+    int Ma=0;
+    int Mb=0;
+    int Dx=0;
+    int Dy=0;
+    for(int j=0;j<Ny;j++){
+        for(int i=0;i<Nx;i++){
+            if((i+j)%2){
+                Ma += Sigma0[i+j*Nx];
+                Dx += Sigma0[i+j*Nx]*Sigma0[(i+1)%Nx+j*Nx];
+                Dy += Sigma0[i+j*Nx]*Sigma0[i+((j+1)%Ny)*Nx];
+            } else {
+                Mb += Sigma0[i+j*Nx];
+                Dx -= Sigma0[i+j*Nx]*Sigma0[(i+1)%Nx+j*Nx];
+                Dy -= Sigma0[i+j*Nx]*Sigma0[i+((j+1)%Ny)*Nx];
+            }
+        }
+    }
 
     mz2 = mz*mz*0.25;
     ms1 = fabs(ms)*0.5/Nsite;
     ms2 = ms*ms*0.25/Nsite/Nsite;
+    d2 = (double)Dx*(double)Dx+(double)Dy*(double)Dy;
+    d2 = d2*0.0625/Nsite/Nsite;
     Data[Nobs*i_sample+i_obs+0] = ms1;
     Data[Nobs*i_sample+i_obs+1] = ms2;
-    Data[Nobs*i_sample+i_obs+2] = mz2*Beta/Nsite;
-    Data[Nobs*i_sample+i_obs+3] = mz2*Beta*Beta/Nsite;
+    Data[Nobs*i_sample+i_obs+2] = d2;
+    Data[Nobs*i_sample+i_obs+3] = mz2*Beta/Nsite;
 }
 
 /* --------------------------------------------------------- **
