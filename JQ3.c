@@ -582,10 +582,10 @@ void set_lattice_jq3_slope_uniform(int nx, int ny, double qbond){
         }
         else if(q==2){
             /*
-            ** o o o o
-            ** o o o-o
-            ** o o-o o
-            ** o-o o o
+            ** x x x x
+            ** x x 4 5
+            ** x 2 3 x
+            ** 0 1 x x
             */
             Bond2index[i_bond*6+0] = i+nx*j;
             Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
@@ -597,10 +597,10 @@ void set_lattice_jq3_slope_uniform(int nx, int ny, double qbond){
         }
         else if(q==3){
             /*
-            ** o o o o
-            ** o-o o o
-            ** o o-o o
-            ** o o o-o
+            ** x x x x
+            ** 0 1 x x
+            ** x 2 3 x
+            ** x x 4 5
             */
             Bond2index[i_bond*6+0] = i+nx*j;
             Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
@@ -612,10 +612,10 @@ void set_lattice_jq3_slope_uniform(int nx, int ny, double qbond){
         }
         else if(q==4){
             /*
-            ** o o | o
-            ** o | | o
-            ** | | o o
-            ** | o o o
+            ** x x 5 x
+            ** x 3 4 x
+            ** 1 2 x x
+            ** 0 x x x
             */
             Bond2index[i_bond*6+0] = i+nx*j;
             Bond2index[i_bond*6+1] = ((i+0)%nx)+nx*((j+1+ny)%ny);
@@ -627,17 +627,17 @@ void set_lattice_jq3_slope_uniform(int nx, int ny, double qbond){
         }
         else if(q==5){
             /*
-            ** | o o o
-            ** | | o o
-            ** o | | o
-            ** o o | o
+            ** 1 x x x
+            ** 0 3 x x
+            ** x 2 5 x
+            ** x x 4 x
             */
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = ((i+0)%nx)+nx*((j-1+ny)%ny);
-            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j-1+ny)%ny);
-            Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j-2+ny)%ny);
-            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j-2+ny)%ny);
-            Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j-3+ny)%ny);
+            Bond2index[i_bond*6+0] = ((i+0)%nx)+nx*((j-1+ny)%ny);
+            Bond2index[i_bond*6+1] = i+nx*j;
+            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j-2+ny)%ny);
+            Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j-1+ny)%ny);
+            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j-3+ny)%ny);
+            Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j-2+ny)%ny);
             Bondst[i_bond] = qbond;
         }
     }
