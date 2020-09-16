@@ -11,7 +11,7 @@
 
 /* The flip rule is the instruction for flipping operator.
 **   | 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 |
-----------------------------------------------
+** -------------------------------------------
 ** a | 1 | 0 | 3 | 2 | 6 | 7 | 4 | 5 | 9 | 8 |
 ** b | 0 | 1 | 4 | 6 | 2 | 8 | 3 | 9 | 5 | 7 |
 ** c | 0 | 1 | 5 | 7 | 8 | 2 | 9 | 3 | 4 | 6 |
@@ -355,10 +355,14 @@ void estimator_fileout(char* filename){
 
 int* stagger_factor;
 
-void measure_mz(int i_obs, int i_sample){
-    double mz2,ms1,ms2,d2;
+void measurement(int i_sample){
+    double mz2,d2;
     double mz=0;
     double ms=0;
+    double msx=0;
+    double ms1=0;
+    double ms2=0;
+    double ms4=0;
     if(stagger_factor==NULL){
         stagger_factor = (int*)malloc(sizeof(int)*Nsite);
         for(int j=0;j<Ny;j++){
@@ -390,15 +394,142 @@ void measure_mz(int i_obs, int i_sample){
         }
     }
 
+    /*-------------- propagate state ----------------*/
+    for(int i=0;i<Nsite;i++) Sigmap[i] = Sigma0[i];
+    int sp,i_bond,type,q;
+    int s1,s2,s3,s4,s5,s6;
+    double wx=0;
+    double wy=0;
+    for(int p=0;p<L;++p){
+        sp = Sequence[p];
+        if(sp!=-1){
+            type = sp%10;
+            i_bond = sp/10;
+            q = i_bond/Nsite;
+
+            s1 = Bond2index[i_bond*6+0];
+            s2 = Bond2index[i_bond*6+1];
+            s3 = Bond2index[i_bond*6+2];
+            s4 = Bond2index[i_bond*6+3];
+            s5 = Bond2index[i_bond*6+4];
+            s6 = Bond2index[i_bond*6+5];
+
+            double* wptr = &wy;
+            if(q==0 || q==2 || q==3) wptr = &wx;
+
+            if(type==1 || type==3){
+                ms += -2*Sigmap[s1]*stagger_factor[s1];
+                ms += -2*Sigmap[s2]*stagger_factor[s2];
+
+                *wptr += Sigmap[s1];
+
+                Sigmap[s1] *= -1;
+                Sigmap[s2] *= -1;
+            } else if(type==4) {
+                ms += -2*Sigmap[s3]*stagger_factor[s3];
+                ms += -2*Sigmap[s4]*stagger_factor[s4];
+
+                *wptr += Sigmap[s3];
+
+                Sigmap[s3] *= -1;
+                Sigmap[s4] *= -1;
+            } else if(type==5) {
+                ms += -2*Sigmap[s5]*stagger_factor[s5];
+                ms += -2*Sigmap[s6]*stagger_factor[s6];
+
+                *wptr += Sigmap[s5];
+
+                Sigmap[s5] *= -1;
+                Sigmap[s6] *= -1;
+            } else if(type==6) {
+                ms += -2*Sigmap[s1]*stagger_factor[s1];
+                ms += -2*Sigmap[s2]*stagger_factor[s2];
+                ms += -2*Sigmap[s3]*stagger_factor[s3];
+                ms += -2*Sigmap[s4]*stagger_factor[s4];
+
+                *wptr += Sigmap[s1];
+                *wptr += Sigmap[s3];
+
+                Sigmap[s1] *= -1;
+                Sigmap[s2] *= -1;
+                Sigmap[s3] *= -1;
+                Sigmap[s4] *= -1;
+            } else if(type==7) {
+                ms += -2*Sigmap[s1]*stagger_factor[s1];
+                ms += -2*Sigmap[s2]*stagger_factor[s2];
+                ms += -2*Sigmap[s5]*stagger_factor[s5];
+                ms += -2*Sigmap[s6]*stagger_factor[s6];
+
+                *wptr += Sigmap[s1];
+                *wptr += Sigmap[s5];
+
+                Sigmap[s1] *= -1;
+                Sigmap[s2] *= -1;
+                Sigmap[s5] *= -1;
+                Sigmap[s6] *= -1;
+            } else if(type==8) {
+                ms += -2*Sigmap[s3]*stagger_factor[s3];
+                ms += -2*Sigmap[s4]*stagger_factor[s4];
+                ms += -2*Sigmap[s5]*stagger_factor[s5];
+                ms += -2*Sigmap[s6]*stagger_factor[s6];
+
+                *wptr += Sigmap[s3];
+                *wptr += Sigmap[s5];
+
+                Sigmap[s3] *= -1;
+                Sigmap[s4] *= -1;
+                Sigmap[s5] *= -1;
+                Sigmap[s6] *= -1;
+            } else if(type==9) {
+                ms += -2*Sigmap[s1]*stagger_factor[s1];
+                ms += -2*Sigmap[s2]*stagger_factor[s2];
+                ms += -2*Sigmap[s3]*stagger_factor[s3];
+                ms += -2*Sigmap[s4]*stagger_factor[s4];
+                ms += -2*Sigmap[s5]*stagger_factor[s5];
+                ms += -2*Sigmap[s6]*stagger_factor[s6];
+
+                *wptr += Sigmap[s1];
+                *wptr += Sigmap[s3];
+                *wptr += Sigmap[s5];
+
+                Sigmap[s1] *= -1;
+                Sigmap[s2] *= -1;
+                Sigmap[s3] *= -1;
+                Sigmap[s4] *= -1;
+                Sigmap[s5] *= -1;
+                Sigmap[s6] *= -1;
+            }
+
+            msx += ms;
+            ms1 += fabs(ms);
+            ms2 += ms*ms;
+            ms4 += ms*ms*ms*ms;
+        }
+    }
+
+    if(Noo!=0) {
+        msx = Beta*(msx*msx+ms2)/Noo/(Noo+1)/Nsite/Nsite*0.25;
+        ms1 = ms1*0.5/Nsite/Noo;
+        ms2 = ms2*0.25/Nsite/Nsite/Noo;
+        ms4 = ms4*0.0625/Nsite/Nsite/Nsite/Nsite/Noo;
+    } else {
+        msx = 0;
+        ms1 = 0;
+        ms2 = 0;
+        ms4 = 0;
+    }
+
     mz2 = mz*mz*0.25;
-    ms1 = fabs(ms)*0.5/Nsite;
-    ms2 = ms*ms*0.25/Nsite/Nsite;
     d2 = (double)Dx*(double)Dx+(double)Dy*(double)Dy;
     d2 = d2*0.0625/Nsite/Nsite;
-    Data[Nobs*i_sample+i_obs+0] = ms1;
-    Data[Nobs*i_sample+i_obs+1] = ms2;
-    Data[Nobs*i_sample+i_obs+2] = d2;
-    Data[Nobs*i_sample+i_obs+3] = mz2*Beta/Nsite;
+    Data[Nobs*i_sample+0] = ms1;
+    Data[Nobs*i_sample+1] = ms2;
+    Data[Nobs*i_sample+2] = ms4;
+    Data[Nobs*i_sample+3] = msx;
+    Data[Nobs*i_sample+4] = d2;
+    Data[Nobs*i_sample+5] = mz2/Nsite;
+    Data[Nobs*i_sample+6] = wx*wx/Nx/Nx;
+    Data[Nobs*i_sample+7] = wy*wy/Ny/Ny;
 }
 
 /* --------------------------------------------------------- **
@@ -632,7 +763,7 @@ void set_opt(int argc, char **argv)
 
 int main(int argc, char** argv){
     int length=1000;
-    int n_obs=4;
+    int n_obs=8;
     double buffer=1.3;
 
     /*--------------default value----------------*/
@@ -688,7 +819,7 @@ int main(int argc, char** argv){
                 loop_update();
                 flip_bit_operator();
 
-                measure_mz(0,i_sample);
+                measurement(i_sample);
             }
             estimator_fileout(Filename);
         }
@@ -719,7 +850,7 @@ int main(int argc, char** argv){
                     loop_update();
                     flip_bit_operator();
 
-                    measure_mz(0,i_sample);
+                    measurement(i_sample);
                 }
                 estimator_fileout(Filename);
             }
