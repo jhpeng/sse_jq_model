@@ -648,6 +648,82 @@ void set_lattice_jq3_slope_uniform(int nx, int ny, double qbond){
     }
 }
 
+void set_lattice_jq3_ladder_uniform(int nx, int ny, double qbond){
+    int i,j,t,q;
+    Nsite = nx*ny;
+    Nj = 2*Nsite;
+    Nq = 2*Nsite;
+
+    Sigma0 = (int*)malloc(Nsite*sizeof(int));
+    Sigmap = (int*)malloc(Nsite*sizeof(int));
+    Vfirst = (int*)malloc(Nsite*sizeof(int));
+    Vlast  = (int*)malloc(Nsite*sizeof(int));
+
+    Bond2index = (int*)malloc((Nj+Nq)*6*sizeof(int));
+    Bondst = (double*)malloc((Nj+Nq)*sizeof(double));
+
+    for(int i_bond=0;i_bond<(Nj+Nq);++i_bond){
+        t = i_bond%Nsite;
+        q = i_bond/Nsite;
+        i = t%nx;
+        j = t/nx;
+
+        if(q==0){
+            Bond2index[i_bond*6+0] = i+nx*j;
+            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
+            Bond2index[i_bond*6+2] = -1;
+            Bond2index[i_bond*6+3] = -1;
+            Bond2index[i_bond*6+4] = -1;
+            Bond2index[i_bond*6+5] = -1;
+            Bondst[i_bond] = 1.0;
+        }
+        else if(q==1){
+            Bond2index[i_bond*6+0] = i+nx*j;
+            Bond2index[i_bond*6+1] = i+nx*((j+1)%ny);
+            Bond2index[i_bond*6+2] = -1;
+            Bond2index[i_bond*6+3] = -1;
+            Bond2index[i_bond*6+4] = -1;
+            Bond2index[i_bond*6+5] = -1;
+            Bondst[i_bond] = 1.0;
+        }
+        else if(q==2){
+            /*
+            ** x x x x
+            ** 4 5 x x
+            ** 2 3 x x
+            ** 0 1 x x
+            */
+            Bond2index[i_bond*6+0] = ((i+0)%nx)+nx*((j+0)%ny);
+            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*((j+0)%ny);
+            Bond2index[i_bond*6+2] = ((i+0)%nx)+nx*((j+1)%ny);
+            Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j+1)%ny);
+            Bond2index[i_bond*6+4] = ((i+0)%nx)+nx*((j+2)%ny);
+            Bond2index[i_bond*6+5] = ((i+1)%nx)+nx*((j+2)%ny);
+            Bondst[i_bond] = qbond;
+        }
+        else if(q==3){
+            /*
+            ** x x x x
+            ** x x x x
+            ** 1 3 5 x
+            ** 0 2 4 x
+            */
+            Bond2index[i_bond*6+0] = ((i+0)%nx)+nx*((j+0)%ny);
+            Bond2index[i_bond*6+1] = ((i+0)%nx)+nx*((j+1)%ny);
+            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j+0)%ny);
+            Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j+1)%ny);
+            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j+0)%ny);
+            Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j+1)%ny);
+            Bondst[i_bond] = qbond;
+        }
+    }
+
+    for(i=0;i<Nsite;++i){
+        if(gsl_rng_uniform_pos(rng)<0.5) Sigma0[i]=1;
+        else Sigma0[i]=-1;
+    }
+}
+
 void set_sequence_length(int length){
     if(Sequence==NULL){
         Sequence = (int*)malloc(length*sizeof(int));
@@ -696,7 +772,8 @@ void set_opt(int argc, char **argv)
                 printf("usage:\n");
                 printf("\t-h print this help\n");
                 printf("\t-l lattice type for the simulation\n");
-                printf("\t\t 0 : 2d JQ3 model (slope uniform)\n");
+                printf("\t\t 0 : 2d JQ3 model (slope  uniform)\n");
+                printf("\t\t 1 : 2d JQ3 model (ladder uniform)\n");
                 printf("\t-m mode for calculate observable\n");
                 printf("\t\t 0 : normal scheme\n");
                 printf("\t\t 1 : beta-doubling scheme\n");
@@ -790,6 +867,7 @@ int main(int argc, char** argv){
     set_random_number(Seed);
 
     if(LatticeType==0) set_lattice_jq3_slope_uniform(Nx,Ny,Qbond);
+    else if(LatticeType==1) set_lattice_jq3_ladder_uniform(Nx,Ny,Qbond);
     set_sequence_length(length);
 
 
