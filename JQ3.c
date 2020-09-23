@@ -534,6 +534,7 @@ void measurement(int i_sample){
     Data[Nobs*i_sample+5] = mz2/Nsite;
     Data[Nobs*i_sample+6] = wx*wx/Nx/Nx;
     Data[Nobs*i_sample+7] = wy*wy/Ny/Ny;
+    Data[Nobs*i_sample+8] = Noo;
 }
 
 /* --------------------------------------------------------- **
@@ -844,7 +845,7 @@ void set_opt(int argc, char **argv)
 
 int main(int argc, char** argv){
     int length=1000;
-    int n_obs=8;
+    int n_obs=9;
     double buffer=1.3;
 
     /*--------------default value----------------*/
