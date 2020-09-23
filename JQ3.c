@@ -415,7 +415,11 @@ void measurement(int i_sample){
             s6 = Bond2index[i_bond*6+5];
 
             double* wptr = &wy;
-            if(q==0 || q==2 || q==3) wptr = &wx;
+            if(LatticeType==0){
+                if(q==0 || q==2 || q==3) wptr = &wx;
+            } else if(LatticeType==1) {
+                if(q==0 || q==2) wptr = &wx;
+            }
 
             if(type==1 || type==3){
                 ms += -2*Sigmap[s1]*stagger_factor[s1];
