@@ -21,7 +21,7 @@ LFLAGS	= -L/usr/local/lib
 LIBS	= -lm -lgsl -lgslcblas
 
 # define the C object files
-OBJS	= main.o
+OBJS	= JQ3.o
 
 #define the directory for object
 OBJSDIR = object
