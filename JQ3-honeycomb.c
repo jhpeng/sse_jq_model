@@ -766,6 +766,33 @@ int main(int argc, char** argv){
     set_sequence_length(length);
 
 
+    /*---------------lattice debug----------------*/
+    if(0){
+        int i_bond;
+        printf("--------------------------------\n");
+        for(i_bond=0;i_bond<Nsite;i_bond++){
+            for(int i=0;i<6;i++) printf("%d ",Bond2index[i_bond*6+i]);
+            printf("\n");
+        }
+        printf("--------------------------------\n");
+        for(i_bond=Nsite;i_bond<Nj;i_bond++){
+            for(int i=0;i<6;i++) printf("%d ",Bond2index[i_bond*6+i]);
+            printf("\n");
+        }
+        printf("--------------------------------\n");
+        for(i_bond=Nj;i_bond<Nj+Nsite/2;i_bond++){
+            for(int i=0;i<6;i++) printf("%d ",Bond2index[i_bond*6+i]);
+            printf("\n");
+        }
+        printf("--------------------------------\n");
+        for(i_bond=Nj+Nsite/2;i_bond<Nj+Nq;i_bond++){
+            for(int i=0;i<6;i++) printf("%d ",Bond2index[i_bond*6+i]);
+            printf("\n");
+        }
+        return 0 ;
+    }   
+
+
 
 /**************************************************************/
 /*********************** Normal Scheme ************************/
