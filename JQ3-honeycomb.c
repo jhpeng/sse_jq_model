@@ -414,8 +414,8 @@ void measurement(int i_sample){
             s5 = Bond2index[i_bond*6+4];
             s6 = Bond2index[i_bond*6+5];
 
-            if(q==0 && type==1) wx += Sigmap[s1];
-            else if(q==1 && type==1) wy += Sigmap[s1];
+            //if(q==0 && type==1) wx += Sigmap[s1];
+            //else if(q==1 && type==1) wy += Sigmap[s1];
 
             if(type==1){
                 ms += -2*Sigmap[s1]*stagger_factor[s1];
