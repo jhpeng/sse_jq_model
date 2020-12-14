@@ -399,11 +399,13 @@ void measurement(int i_sample){
         if(sp!=-1){
             type = sp%10;
             i_bond = sp/10;
-            
+
             q=0;
-            if(i_bond>=Nsite && i_bond<Nj) q=1;
+            if(i_bond<Nsite) q=0;
+            else if(i_bond>=Nsite && i_bond<Nj) q=1;
             else if(i_bond>=Nj && i_bond<Nj+Nsite/2)q=2;
             else if(i_bond>=Nj+Nsite/2 && i_bond<Nj+Nq)q=3;
+            else exit(-1);
 
             s1 = Bond2index[i_bond*6+0];
             s2 = Bond2index[i_bond*6+1];
