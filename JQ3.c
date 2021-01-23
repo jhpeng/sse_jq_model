@@ -517,10 +517,10 @@ void measurement(int i_sample){
         ms2 = ms2*0.25/Nsite/Nsite/Noo;
         ms4 = ms4*0.0625/Nsite/Nsite/Nsite/Nsite/Noo;
     } else {
-        msx = 0;
-        ms1 = 0;
-        ms2 = 0;
-        ms4 = 0;
+        msx = Beta*(ms*ms*(L*L+1))/L/(L+1)/Nsite/Nsite*0.25;
+        ms1 = fabs(ms)*0.5/Nsite;
+        ms2 = ms*ms*0.25/Nsite/Nsite;
+        ms4 = ms*ms*ms*ms*0.0625/Nsite/Nsite/Nsite/Nsite;
     }
 
     mz2 = mz*mz*0.25;
