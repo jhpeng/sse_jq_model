@@ -405,7 +405,7 @@ void set_lattice_diluted_bilayer_2d(int nx, int ny, double jbond, double p){
             Bond2index[i_bond*4+1] = index2;
             Bond2index[i_bond*4+2] = -1;
             Bond2index[i_bond*4+3] = -1;
-            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = 1;
+            if(epsilon[index1] && epsilon[index2]) Bondst[i_bond] = 1;
         }
         else if(q==1){
             index1 = i+nx*j;
@@ -414,35 +414,39 @@ void set_lattice_diluted_bilayer_2d(int nx, int ny, double jbond, double p){
             Bond2index[i_bond*4+1] = index2;
             Bond2index[i_bond*4+2] = -1;
             Bond2index[i_bond*4+3] = -1;
-            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = 1;
+            if(epsilon[index1] && epsilon[index2]) Bondst[i_bond] = 1;
         }
         else if(q==2){
-            index1 = i+nx*j;
-            index2 = ((i+1)%nx)+nx*j;
+            index1 = i+nx*j+nx*ny;
+            index2 = ((i+1)%nx)+nx*j+nx*ny;
             Bond2index[i_bond*4+0] = index1;
             Bond2index[i_bond*4+1] = index2;
             Bond2index[i_bond*4+2] = -1;
             Bond2index[i_bond*4+3] = -1;
-            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = 1;
+            if(epsilon[index1] && epsilon[index2]) Bondst[i_bond] = 1;
         }
         else if(q==3){
-            index1 = i+nx*j;
-            index2 = i+nx*((j+1)%ny);
+            index1 = i+nx*j+nx*ny;
+            index2 = i+nx*((j+1)%ny)+nx*ny;
             Bond2index[i_bond*4+0] = index1;
             Bond2index[i_bond*4+1] = index2;
             Bond2index[i_bond*4+2] = -1;
             Bond2index[i_bond*4+3] = -1;
-            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = 1;
+            if(epsilon[index1] && epsilon[index2]) Bondst[i_bond] = 1;
         }
-        else if(q==1){
+        else if(q==4){
             index1 = i+nx*j;
             index2 = i+nx*j+nx*ny;
             Bond2index[i_bond*4+0] = index1;
             Bond2index[i_bond*4+1] = index2;
             Bond2index[i_bond*4+2] = -1;
             Bond2index[i_bond*4+3] = -1;
-            if(epsilon[index1] || epsilon[index2]) Bondst[i_bond] = jbond;
+            if(epsilon[index1] && epsilon[index2]) Bondst[i_bond] = jbond;
         }
+    }
+    for(i=0;i<Nsite;++i){
+        if(gsl_rng_uniform_pos(rng)<0.5) Sigma0[i]=1;
+        else Sigma0[i]=-1;
     }
 
     free(epsilon);
@@ -535,6 +539,18 @@ void set_estimator(int n_obs, int n_sample, int n_block){
     Nblock = n_block;
 }
 
+void free_memory(){
+    free(Sequence);
+    free(Linkv);
+    free(Sigma0);
+    free(Sigmap);
+    free(Vfirst);
+    free(Vlast);
+    free(Bond2index);
+    free(Bondst);
+    free(Data);
+}
+
 
 
 /* ----------------------------------------------- **
@@ -619,7 +635,7 @@ void set_opt(int argc, char **argv)
 ** ----------------------------------------------- */ 
 
 int main(int argc, char** argv){
-    int length=1000;
+    int length=100;
     int n_obs=4;
     double buffer=1.3;
 
@@ -638,17 +654,21 @@ int main(int argc, char** argv){
     Nit = 5;
 
 
-
-
-    /*-------------setting lattice---------------*/
+    /*----------------get option-----------------*/
     set_opt(argc,argv);
     if(Help) return 0;
 
+
+    /*-----------set random generator------------*/
     set_random_number(Seed);
 
+
+    /*---------------set lattice-----------------*/
     if(LatticeType==0) set_lattice_jq_isotropy_2d(Nx,Ny,Jbond);
     else if(LatticeType==1) set_lattice_diluted_bilayer_2d(Nx,Ny,Jbond,P);
+
     set_sequence_length(length);
+    set_estimator(n_obs,Nsample,Nblock);
 
 
 
@@ -669,7 +689,6 @@ int main(int argc, char** argv){
         }
 
         /*---------------Measurement-----------------*/
-        set_estimator(n_obs,Nsample,Nblock);
         for(int k=0;k<Nblock;++k){
             for(int i_sample=0;i_sample<Nsample;++i_sample){
                 diagonal_update();
@@ -700,7 +719,6 @@ int main(int argc, char** argv){
             }
 
             /*---------------Measurement-----------------*/
-            set_estimator(n_obs,Nsample,Nblock);
             for(int k=0;k<Nblock;++k){
                 for(int i_sample=0;i_sample<Nsample;++i_sample){
                     diagonal_update();
@@ -716,5 +734,6 @@ int main(int argc, char** argv){
         }
     }
 
+    free_memory();
     return 0;
 }
