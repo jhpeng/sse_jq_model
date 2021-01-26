@@ -364,7 +364,7 @@ void measurement(int i_sample){
     double ms2=0;
     double ms4=0;
     if(stagger_factor==NULL){
-        stagger_factor = (int*)malloc(sizeof(int)*Nsite);
+        stagger_factor = (int*)malloc(sizeof(int)*Nx*Ny);
         for(int j=0;j<Ny;j++){
             for(int i=0;i<Nx;i++){
                 stagger_factor[i+j*Nx] = (i+j)%2*2-1;
@@ -405,7 +405,7 @@ void measurement(int i_sample){
         if(sp!=-1){
             type = sp%10;
             i_bond = sp/10;
-            q = i_bond/Nsite;
+            q = i_bond/(Nx*Ny);
 
             s1 = Bond2index[i_bond*6+0];
             s2 = Bond2index[i_bond*6+1];
