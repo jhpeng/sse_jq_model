@@ -419,6 +419,10 @@ void measurement(int i_sample){
                 if(q==0 || q==2 || q==3) wptr = &wx;
             } else if(LatticeType==1) {
                 if(q==0 || q==2) wptr = &wx;
+            } else if(LatticeType==2){
+                if(q==0 || q==2 || q==3) wptr = &wx;
+            } else if(LatticeType==3) {
+                if(q==0 || q==2) wptr = &wx;
             }
 
             if(type==1 || type==3){
