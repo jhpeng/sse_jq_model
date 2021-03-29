@@ -364,7 +364,7 @@ void measurement(int i_sample){
     double ms2=0;
     double ms4=0;
     if(stagger_factor==NULL){
-        stagger_factor = (int*)malloc(sizeof(int)*Nsite);
+        stagger_factor = (int*)malloc(sizeof(int)*Nx*Ny);
         for(int j=0;j<Ny;j++){
             for(int i=0;i<Nx;i++){
                 stagger_factor[i+j*Nx] = (i+j)%2*2-1;
@@ -374,18 +374,6 @@ void measurement(int i_sample){
     for(int i=0;i<Nsite;++i){
         mz+=Sigma0[i];
         ms+=Sigma0[i]*stagger_factor[i];
-    }
-
-    int Ma=0;
-    int Mb=0;
-    for(int j=0;j<Ny;j++){
-        for(int i=0;i<Nx;i++){
-            if((i+j)%2){
-                Ma += Sigma0[i+j*Nx];
-            } else {
-                Mb += Sigma0[i+j*Nx];
-            }
-        }
     }
 
     /*-------------- propagate state ----------------*/
@@ -623,6 +611,88 @@ void set_lattice_jq3_honeycomb(int nx, int ny, double qbond){
     }
 }
 
+void set_lattice_jq3_honeycomb_spin_half_impurity(int nx, int ny, double qbond){
+    int i,j,t;
+    Nsite = nx*ny;
+    Nj = 3*(Nsite/2);
+    Nq = Nsite;
+
+    Sigma0 = (int*)malloc(Nsite*sizeof(int));
+    Sigmap = (int*)malloc(Nsite*sizeof(int));
+    Vfirst = (int*)malloc(Nsite*sizeof(int));
+    Vlast  = (int*)malloc(Nsite*sizeof(int));
+
+    Bond2index = (int*)malloc((Nj+Nq)*6*sizeof(int));
+    Bondst = (double*)malloc((Nj+Nq)*sizeof(double));
+
+    for(int i_bond=0;i_bond<Nsite;++i_bond){
+        t = i_bond;
+        i = t%nx;
+        j = t/nx;
+
+        Bond2index[i_bond*6+0] = i+nx*j;
+        Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
+        Bond2index[i_bond*6+2] = -1;
+        Bond2index[i_bond*6+3] = -1;
+        Bond2index[i_bond*6+4] = -1;
+        Bond2index[i_bond*6+5] = -1;
+        Bondst[i_bond] = 1.0;
+    }
+    for(int i_bond=Nsite;i_bond<Nj;++i_bond){
+        t = i_bond-Nsite;
+        j = t/(nx/2);
+        i = (t%(nx/2))*2+j%2;
+
+        Bond2index[i_bond*6+0] = i+nx*j;
+        Bond2index[i_bond*6+1] = ((i+0)%nx)+nx*((j+1)%ny);
+        Bond2index[i_bond*6+2] = -1;
+        Bond2index[i_bond*6+3] = -1;
+        Bond2index[i_bond*6+4] = -1;
+        Bond2index[i_bond*6+5] = -1;
+        Bondst[i_bond] = 1.0;
+    }
+    for(int i_bond=Nj;i_bond<Nj+Nsite/2;++i_bond){
+        t = i_bond-Nj;
+        j = t/(nx/2);
+        i = (t%(nx/2))*2+j%2;
+
+        Bond2index[i_bond*6+0] = i+nx*j;
+        Bond2index[i_bond*6+1] = ((i+0)%nx)+nx*((j+1)%ny);
+        Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j+0)%ny);
+        Bond2index[i_bond*6+3] = ((i+2)%nx)+nx*((j+0)%ny);
+        Bond2index[i_bond*6+4] = ((i+1)%nx)+nx*((j+1)%ny);
+        Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j+1)%ny);
+        Bondst[i_bond] = qbond;
+    }
+    for(int i_bond=Nj+Nsite/2;i_bond<Nj+Nq;++i_bond){
+        t = i_bond-Nj-Nsite/2;
+        j = t/(nx/2);
+        i = (t%(nx/2))*2+j%2;
+
+        Bond2index[i_bond*6+0] = ((i+2)%nx)+nx*((j+0)%ny);
+        Bond2index[i_bond*6+1] = ((i+2)%nx)+nx*((j+1)%ny);
+        Bond2index[i_bond*6+2] = ((i+0)%nx)+nx*((j+0)%ny);
+        Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j+0)%ny);
+        Bond2index[i_bond*6+4] = ((i+0)%nx)+nx*((j+1)%ny);
+        Bond2index[i_bond*6+5] = ((i+1)%nx)+nx*((j+1)%ny);
+        Bondst[i_bond] = qbond;
+    }
+
+    for(i=0;i<Nsite;++i){
+        if(gsl_rng_uniform_pos(rng)<0.5) Sigma0[i]=1;
+        else Sigma0[i]=-1;
+    }
+
+    for(int i_bond=0;i_bond<(Nj+Nq);i_bond++){
+        for(i=0;i<6;i++){
+            if(Bond2index[i_bond*6+i]==Nsite-1){
+                Bondst[i_bond] = 0;
+            }
+        }
+    }
+    Nsite = Nsite-1;
+}
+
 void set_sequence_length(int length){
     if(Sequence==NULL){
         Sequence = (int*)malloc(length*sizeof(int));
@@ -672,6 +742,7 @@ void set_opt(int argc, char **argv)
                 printf("\t-h print this help\n");
                 printf("\t-l lattice type for the simulation\n");
                 printf("\t\t 0 : 2d JQ3 honeycomb\n");
+                printf("\t\t 0 : 2d JQ3 honeycomb (spin-half impurity)\n");
                 printf("\t-m mode for calculate observable\n");
                 printf("\t\t 0 : normal scheme\n");
                 printf("\t\t 1 : beta-doubling scheme\n");
@@ -765,6 +836,7 @@ int main(int argc, char** argv){
     set_random_number(Seed);
 
     if(LatticeType==0) set_lattice_jq3_honeycomb(Nx,Ny,Qbond);
+    else if(LatticeType==1) set_lattice_jq3_honeycomb_spin_half_impurity(Nx,Ny,Qbond);
     set_sequence_length(length);
 
 
