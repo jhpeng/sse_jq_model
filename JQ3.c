@@ -602,7 +602,9 @@ void set_lattice_jq3_slope_uniform(int nx, int ny, double qbond){
             Bond2index[i_bond*6+3] = ((i+2)%nx)+nx*((j+1)%ny);
             Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j+2)%ny);
             Bond2index[i_bond*6+5] = ((i+3)%nx)+nx*((j+2)%ny);
-            Bondst[i_bond] = qbond;
+            Bondst[i_bond] = qbond+P;
+            if(gsl_rng_uniform_pos(rng)<0.5)
+                Bondst[i_bond] = qbond-P;
         }
         else if(q==3){
             /*
@@ -617,7 +619,9 @@ void set_lattice_jq3_slope_uniform(int nx, int ny, double qbond){
             Bond2index[i_bond*6+3] = ((i+2)%nx)+nx*((j-1+ny)%ny);
             Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j-2+ny)%ny);
             Bond2index[i_bond*6+5] = ((i+3)%nx)+nx*((j-2+ny)%ny);
-            Bondst[i_bond] = qbond;
+            Bondst[i_bond] = qbond+P;
+            if(gsl_rng_uniform_pos(rng)<0.5)
+                Bondst[i_bond] = qbond-P;
         }
         else if(q==4){
             /*
@@ -632,7 +636,9 @@ void set_lattice_jq3_slope_uniform(int nx, int ny, double qbond){
             Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j+2+ny)%ny);
             Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j+2+ny)%ny);
             Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j+3+ny)%ny);
-            Bondst[i_bond] = qbond;
+            Bondst[i_bond] = qbond+P;
+            if(gsl_rng_uniform_pos(rng)<0.5)
+                Bondst[i_bond] = qbond-P;
         }
         else if(q==5){
             /*
@@ -647,7 +653,9 @@ void set_lattice_jq3_slope_uniform(int nx, int ny, double qbond){
             Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j-1+ny)%ny);
             Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j-3+ny)%ny);
             Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j-2+ny)%ny);
-            Bondst[i_bond] = qbond;
+            Bondst[i_bond] = qbond+P;
+            if(gsl_rng_uniform_pos(rng)<0.5)
+                Bondst[i_bond] = qbond-P;
         }
     }
 
@@ -1017,6 +1025,7 @@ void set_opt(int argc, char **argv)
                 printf("\t-x <length of x> default 8\n");
                 printf("\t-y <length of y> default 8\n");
                 printf("\t-q <Q3/J ratio> default 1.0\n");
+                printf("\t-p <Q3' = q +- p> default 0.0\n");
                 printf("\t-b <beta> default 4.0\n");
                 printf("\t-n <Nsample> default 2000\n");
                 printf("\t-k <Nblock> default 50\n");
