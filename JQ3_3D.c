@@ -346,7 +346,7 @@ void measurement(int i_sample){
         for(int k=0;k<Nz;k++){
             for(int j=0;j<Ny;j++){
                 for(int i=0;i<Nx;i++){
-                    stagger_factor[i+j*Nx] = (i+j+k)%2*2-1;
+                    stagger_factor[i+j*Nx+k*Nx*Ny] = (i+j+k)%2*2-1;
                 }
             }
         }
@@ -475,251 +475,9 @@ void set_random_number(int seed){
     gsl_rng_set(rng,seed);
 }
 
-void set_lattice_jq3_slope_uniform(int nx, int ny, double qbond){
-    int i,j,t,q;
-    Nsite = nx*ny;
-    Nj = 2*Nsite;
-    Nq = 4*Nsite;
-
-    Sigma0 = (int*)malloc(Nsite*sizeof(int));
-    Sigmap = (int*)malloc(Nsite*sizeof(int));
-    Vfirst = (int*)malloc(Nsite*sizeof(int));
-    Vlast  = (int*)malloc(Nsite*sizeof(int));
-
-    Bond2index = (int*)malloc((Nj+Nq)*6*sizeof(int));
-    Bondst = (double*)malloc((Nj+Nq)*sizeof(double));
-
-    for(int i_bond=0;i_bond<(Nj+Nq);++i_bond){
-        t = i_bond%Nsite;
-        q = i_bond/Nsite;
-        i = t%nx;
-        j = t/nx;
-
-        if(q==0){
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
-            Bond2index[i_bond*6+2] = -1;
-            Bond2index[i_bond*6+3] = -1;
-            Bond2index[i_bond*6+4] = -1;
-            Bond2index[i_bond*6+5] = -1;
-            Bondst[i_bond] = 1.0;
-        }
-        else if(q==1){
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = i+nx*((j+1)%ny);
-            Bond2index[i_bond*6+2] = -1;
-            Bond2index[i_bond*6+3] = -1;
-            Bond2index[i_bond*6+4] = -1;
-            Bond2index[i_bond*6+5] = -1;
-            Bondst[i_bond] = 1.0;
-        }
-        else if(q==2){
-            /*
-            ** x x x x
-            ** x x 4 5
-            ** x 2 3 x
-            ** 0 1 x x
-            */
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
-            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j+1)%ny);
-            Bond2index[i_bond*6+3] = ((i+2)%nx)+nx*((j+1)%ny);
-            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j+2)%ny);
-            Bond2index[i_bond*6+5] = ((i+3)%nx)+nx*((j+2)%ny);
-            Bondst[i_bond] = qbond+P;
-            if(gsl_rng_uniform_pos(rng)<0.5)
-                Bondst[i_bond] = qbond-P;
-        }
-        else if(q==3){
-            /*
-            ** x x x x
-            ** 0 1 x x
-            ** x 2 3 x
-            ** x x 4 5
-            */
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
-            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j-1+ny)%ny);
-            Bond2index[i_bond*6+3] = ((i+2)%nx)+nx*((j-1+ny)%ny);
-            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j-2+ny)%ny);
-            Bond2index[i_bond*6+5] = ((i+3)%nx)+nx*((j-2+ny)%ny);
-            Bondst[i_bond] = qbond+P;
-            if(gsl_rng_uniform_pos(rng)<0.5)
-                Bondst[i_bond] = qbond-P;
-        }
-        else if(q==4){
-            /*
-            ** x x 5 x
-            ** x 3 4 x
-            ** 1 2 x x
-            ** 0 x x x
-            */
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = ((i+0)%nx)+nx*((j+1+ny)%ny);
-            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j+1+ny)%ny);
-            Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j+2+ny)%ny);
-            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j+2+ny)%ny);
-            Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j+3+ny)%ny);
-            Bondst[i_bond] = qbond+P;
-            if(gsl_rng_uniform_pos(rng)<0.5)
-                Bondst[i_bond] = qbond-P;
-        }
-        else if(q==5){
-            /*
-            ** 1 x x x
-            ** 0 3 x x
-            ** x 2 5 x
-            ** x x 4 x
-            */
-            Bond2index[i_bond*6+0] = ((i+0)%nx)+nx*((j-1+ny)%ny);
-            Bond2index[i_bond*6+1] = i+nx*j;
-            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j-2+ny)%ny);
-            Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j-1+ny)%ny);
-            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j-3+ny)%ny);
-            Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j-2+ny)%ny);
-            Bondst[i_bond] = qbond+P;
-            if(gsl_rng_uniform_pos(rng)<0.5)
-                Bondst[i_bond] = qbond-P;
-        }
-    }
-
-    for(i=0;i<Nsite;++i){
-        if(gsl_rng_uniform_pos(rng)<0.5) Sigma0[i]=1;
-        else Sigma0[i]=-1;
-    }
-}
-
-void set_lattice_jq3_slope_impurity(int nx, int ny, double qbond){
-    int i,j,t,q;
-    Nsite = nx*ny;
-    Nj = 2*Nsite;
-    Nq = 4*Nsite;
-
-    Sigma0 = (int*)malloc(Nsite*sizeof(int));
-    Sigmap = (int*)malloc(Nsite*sizeof(int));
-    Vfirst = (int*)malloc(Nsite*sizeof(int));
-    Vlast  = (int*)malloc(Nsite*sizeof(int));
-
-    Bond2index = (int*)malloc((Nj+Nq)*6*sizeof(int));
-    Bondst = (double*)malloc((Nj+Nq)*sizeof(double));
-
-    for(int i_bond=0;i_bond<(Nj+Nq);++i_bond){
-        t = i_bond%Nsite;
-        q = i_bond/Nsite;
-        i = t%nx;
-        j = t/nx;
-
-        if(q==0){
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
-            Bond2index[i_bond*6+2] = -1;
-            Bond2index[i_bond*6+3] = -1;
-            Bond2index[i_bond*6+4] = -1;
-            Bond2index[i_bond*6+5] = -1;
-            Bondst[i_bond] = 1.0;
-        }
-        else if(q==1){
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = i+nx*((j+1)%ny);
-            Bond2index[i_bond*6+2] = -1;
-            Bond2index[i_bond*6+3] = -1;
-            Bond2index[i_bond*6+4] = -1;
-            Bond2index[i_bond*6+5] = -1;
-            Bondst[i_bond] = 1.0;
-        }
-        else if(q==2){
-            /*
-            ** x x x x
-            ** x x 4 5
-            ** x 2 3 x
-            ** 0 1 x x
-            */
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
-            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j+1)%ny);
-            Bond2index[i_bond*6+3] = ((i+2)%nx)+nx*((j+1)%ny);
-            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j+2)%ny);
-            Bond2index[i_bond*6+5] = ((i+3)%nx)+nx*((j+2)%ny);
-            Bondst[i_bond] = qbond;
-        }
-        else if(q==3){
-            /*
-            ** x x x x
-            ** 0 1 x x
-            ** x 2 3 x
-            ** x x 4 5
-            */
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
-            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j-1+ny)%ny);
-            Bond2index[i_bond*6+3] = ((i+2)%nx)+nx*((j-1+ny)%ny);
-            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j-2+ny)%ny);
-            Bond2index[i_bond*6+5] = ((i+3)%nx)+nx*((j-2+ny)%ny);
-            Bondst[i_bond] = qbond;
-        }
-        else if(q==4){
-            /*
-            ** x x 5 x
-            ** x 3 4 x
-            ** 1 2 x x
-            ** 0 x x x
-            */
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = ((i+0)%nx)+nx*((j+1+ny)%ny);
-            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j+1+ny)%ny);
-            Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j+2+ny)%ny);
-            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j+2+ny)%ny);
-            Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j+3+ny)%ny);
-            Bondst[i_bond] = qbond;
-        }
-        else if(q==5){
-            /*
-            ** 1 x x x
-            ** 0 3 x x
-            ** x 2 5 x
-            ** x x 4 x
-            */
-            Bond2index[i_bond*6+0] = ((i+0)%nx)+nx*((j-1+ny)%ny);
-            Bond2index[i_bond*6+1] = i+nx*j;
-            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j-2+ny)%ny);
-            Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j-1+ny)%ny);
-            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j-3+ny)%ny);
-            Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j-2+ny)%ny);
-            Bondst[i_bond] = qbond;
-        }
-    }
-
-    for(i=0;i<Nsite;++i){
-        if(gsl_rng_uniform_pos(rng)<0.5) Sigma0[i]=1;
-        else Sigma0[i]=-1;
-    }
-
-    for(i=0;i<Nj;i++) {
-        int impurity=1;
-        for(j=0;j<2;j++) {
-            if(Bond2index[i*6+j]==(Nsite-1)){
-                impurity=0;
-            }
-        }
-        Bondst[i] = Bondst[i]*impurity;
-    }
-    for(i=Nj;i<(Nj+Nq);i++) {
-        int impurity=1;
-        for(j=0;j<6;j++) {
-            if(Bond2index[i*6+j]==(Nsite-1)){
-                impurity=0;
-            }
-        }
-        Bondst[i] = Bondst[i]*impurity;
-    }
-
-    Nsite = Nsite-1;
-}
-
-void set_lattice_jq3_ladder_uniform(int nx, int ny, double qbond){
-    int i,j,t,q;
-    Nsite = nx*ny;
-    Nj = 2*Nsite;
+void set_lattice_jq3_3d_ladder_uniform(int nx, int ny, int nz, double qbond){
+    Nsite = nx*ny*nz;
+    Nj = 3*Nsite;
     Nq = 2*Nsite;
 
     Sigma0 = (int*)malloc(Nsite*sizeof(int));
@@ -730,163 +488,87 @@ void set_lattice_jq3_ladder_uniform(int nx, int ny, double qbond){
     Bond2index = (int*)malloc((Nj+Nq)*6*sizeof(int));
     Bondst = (double*)malloc((Nj+Nq)*sizeof(double));
 
-    for(int i_bond=0;i_bond<(Nj+Nq);++i_bond){
-        t = i_bond%Nsite;
-        q = i_bond/Nsite;
-        i = t%nx;
-        j = t/nx;
+    int i_bond=0;
+    for(int k=0;k<nz;k++) {
+        for(int j=0;j<ny;j++) {
+            for(int i=0;i<nx;i++) {
+                Bond2index[i_bond*6+0] = i+nx*j+nx*ny*k;
+                Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j+nx*ny*k;
+                Bond2index[i_bond*6+2] = -1;
+                Bond2index[i_bond*6+3] = -1;
+                Bond2index[i_bond*6+4] = -1;
+                Bond2index[i_bond*6+5] = -1;
+                Bondst[i_bond] = 1.0;
 
-        if(q==0){
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
-            Bond2index[i_bond*6+2] = -1;
-            Bond2index[i_bond*6+3] = -1;
-            Bond2index[i_bond*6+4] = -1;
-            Bond2index[i_bond*6+5] = -1;
-            Bondst[i_bond] = 1.0;
+                i_bond++;
+            }
         }
-        else if(q==1){
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = i+nx*((j+1)%ny);
-            Bond2index[i_bond*6+2] = -1;
-            Bond2index[i_bond*6+3] = -1;
-            Bond2index[i_bond*6+4] = -1;
-            Bond2index[i_bond*6+5] = -1;
-            Bondst[i_bond] = 1.0;
+    }
+    for(int k=0;k<nz;k++) {
+        for(int j=0;j<ny;j++) {
+            for(int i=0;i<nx;i++) {
+                Bond2index[i_bond*6+0] = i+nx*j+nx*ny*k;
+                Bond2index[i_bond*6+1] = i+nx*((j+1)%ny)+nx*ny*k;
+                Bond2index[i_bond*6+2] = -1;
+                Bond2index[i_bond*6+3] = -1;
+                Bond2index[i_bond*6+4] = -1;
+                Bond2index[i_bond*6+5] = -1;
+                Bondst[i_bond] = 1.0;
+
+                i_bond++;
+            }
         }
-        else if(q==2){
-            /*
-            ** x x x x
-            ** 4 5 x x
-            ** 2 3 x x
-            ** 0 1 x x
-            */
-            Bond2index[i_bond*6+0] = ((i+0)%nx)+nx*((j+0)%ny);
-            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*((j+0)%ny);
-            Bond2index[i_bond*6+2] = ((i+0)%nx)+nx*((j+1)%ny);
-            Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j+1)%ny);
-            Bond2index[i_bond*6+4] = ((i+0)%nx)+nx*((j+2)%ny);
-            Bond2index[i_bond*6+5] = ((i+1)%nx)+nx*((j+2)%ny);
-            Bondst[i_bond] = qbond;
+    }
+    for(int k=0;k<nz;k++) {
+        for(int j=0;j<ny;j++) {
+            for(int i=0;i<nx;i++) {
+                Bond2index[i_bond*6+0] = i+nx*j+nx*ny*k;
+                Bond2index[i_bond*6+1] = i+nx*j+nx*ny*((k+1)%nz);
+                Bond2index[i_bond*6+2] = -1;
+                Bond2index[i_bond*6+3] = -1;
+                Bond2index[i_bond*6+4] = -1;
+                Bond2index[i_bond*6+5] = -1;
+                Bondst[i_bond] = 1.0;
+
+                i_bond++;
+            }
         }
-        else if(q==3){
-            /*
-            ** x x x x
-            ** x x x x
-            ** 1 3 5 x
-            ** 0 2 4 x
-            */
-            Bond2index[i_bond*6+0] = ((i+0)%nx)+nx*((j+0)%ny);
-            Bond2index[i_bond*6+1] = ((i+0)%nx)+nx*((j+1)%ny);
-            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j+0)%ny);
-            Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j+1)%ny);
-            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j+0)%ny);
-            Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j+1)%ny);
-            Bondst[i_bond] = qbond;
+    }
+    for(int k=0;k<nz;k++) {
+        for(int j=0;j<ny;j++) {
+            for(int i=0;i<nx;i++) {
+                Bond2index[i_bond*6+0] = ((i+0)%nx)+nx*((j+0)%ny)+nx*ny*k;
+                Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*((j+0)%ny)+nx*ny*k;
+                Bond2index[i_bond*6+2] = ((i+0)%nx)+nx*((j+1)%ny)+nx*ny*k;
+                Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j+1)%ny)+nx*ny*k;
+                Bond2index[i_bond*6+4] = ((i+0)%nx)+nx*((j+2)%ny)+nx*ny*k;
+                Bond2index[i_bond*6+5] = ((i+1)%nx)+nx*((j+2)%ny)+nx*ny*k;
+                Bondst[i_bond] = qbond;
+
+                i_bond++;
+            }
+        }
+    }
+    for(int k=0;k<nz;k++) {
+        for(int j=0;j<ny;j++) {
+            for(int i=0;i<nx;i++) {
+                Bond2index[i_bond*6+0] = ((i+0)%nx)+nx*((j+0)%ny)+nx*ny*k;
+                Bond2index[i_bond*6+1] = ((i+0)%nx)+nx*((j+1)%ny)+nx*ny*k;
+                Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j+0)%ny)+nx*ny*k;
+                Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j+1)%ny)+nx*ny*k;
+                Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j+0)%ny)+nx*ny*k;
+                Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j+1)%ny)+nx*ny*k;
+                Bondst[i_bond] = qbond;
+
+                i_bond++;
+            }
         }
     }
 
-    for(i=0;i<Nsite;++i){
+    for(int i=0;i<Nsite;++i){
         if(gsl_rng_uniform_pos(rng)<0.5) Sigma0[i]=1;
         else Sigma0[i]=-1;
     }
-}
-
-void set_lattice_jq3_ladder_impurity(int nx, int ny, double qbond){
-    int i,j,t,q;
-    Nsite = nx*ny;
-    Nj = 2*Nsite;
-    Nq = 2*Nsite;
-
-    Sigma0 = (int*)malloc(Nsite*sizeof(int));
-    Sigmap = (int*)malloc(Nsite*sizeof(int));
-    Vfirst = (int*)malloc(Nsite*sizeof(int));
-    Vlast  = (int*)malloc(Nsite*sizeof(int));
-
-    Bond2index = (int*)malloc((Nj+Nq)*6*sizeof(int));
-    Bondst = (double*)malloc((Nj+Nq)*sizeof(double));
-
-    for(int i_bond=0;i_bond<(Nj+Nq);++i_bond){
-        t = i_bond%Nsite;
-        q = i_bond/Nsite;
-        i = t%nx;
-        j = t/nx;
-
-        if(q==0){
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*j;
-            Bond2index[i_bond*6+2] = -1;
-            Bond2index[i_bond*6+3] = -1;
-            Bond2index[i_bond*6+4] = -1;
-            Bond2index[i_bond*6+5] = -1;
-            Bondst[i_bond] = 1.0;
-        }
-        else if(q==1){
-            Bond2index[i_bond*6+0] = i+nx*j;
-            Bond2index[i_bond*6+1] = i+nx*((j+1)%ny);
-            Bond2index[i_bond*6+2] = -1;
-            Bond2index[i_bond*6+3] = -1;
-            Bond2index[i_bond*6+4] = -1;
-            Bond2index[i_bond*6+5] = -1;
-            Bondst[i_bond] = 1.0;
-        }
-        else if(q==2){
-            /*
-            ** x x x x
-            ** 4 5 x x
-            ** 2 3 x x
-            ** 0 1 x x
-            */
-            Bond2index[i_bond*6+0] = ((i+0)%nx)+nx*((j+0)%ny);
-            Bond2index[i_bond*6+1] = ((i+1)%nx)+nx*((j+0)%ny);
-            Bond2index[i_bond*6+2] = ((i+0)%nx)+nx*((j+1)%ny);
-            Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j+1)%ny);
-            Bond2index[i_bond*6+4] = ((i+0)%nx)+nx*((j+2)%ny);
-            Bond2index[i_bond*6+5] = ((i+1)%nx)+nx*((j+2)%ny);
-            Bondst[i_bond] = qbond;
-        }
-        else if(q==3){
-            /*
-            ** x x x x
-            ** x x x x
-            ** 1 3 5 x
-            ** 0 2 4 x
-            */
-            Bond2index[i_bond*6+0] = ((i+0)%nx)+nx*((j+0)%ny);
-            Bond2index[i_bond*6+1] = ((i+0)%nx)+nx*((j+1)%ny);
-            Bond2index[i_bond*6+2] = ((i+1)%nx)+nx*((j+0)%ny);
-            Bond2index[i_bond*6+3] = ((i+1)%nx)+nx*((j+1)%ny);
-            Bond2index[i_bond*6+4] = ((i+2)%nx)+nx*((j+0)%ny);
-            Bond2index[i_bond*6+5] = ((i+2)%nx)+nx*((j+1)%ny);
-            Bondst[i_bond] = qbond;
-        }
-    }
-
-    for(i=0;i<Nsite;++i){
-        if(gsl_rng_uniform_pos(rng)<0.5) Sigma0[i]=1;
-        else Sigma0[i]=-1;
-    }
-
-    for(i=0;i<Nj;i++) {
-        int impurity=1;
-        for(j=0;j<2;j++) {
-            if(Bond2index[i*6+j]==(Nsite-1)){
-                impurity=0;
-            }
-        }
-        Bondst[i] = Bondst[i]*impurity;
-    }
-    for(i=Nj;i<(Nj+Nq);i++) {
-        int impurity=1;
-        for(j=0;j<6;j++) {
-            if(Bond2index[i*6+j]==(Nsite-1)){
-                impurity=0;
-            }
-        }
-        Bondst[i] = Bondst[i]*impurity;
-    }
-
-    Nsite = Nsite-1;
 }
 
 void set_sequence_length(int length){
@@ -937,10 +619,7 @@ void set_opt(int argc, char **argv)
                 printf("usage:\n");
                 printf("\t-h print this help\n");
                 printf("\t-l lattice type for the simulation\n");
-                printf("\t\t 0 : 2d JQ3 model (slope  uniform)\n");
-                printf("\t\t 1 : 2d JQ3 model (ladder uniform)\n");
-                printf("\t\t 2 : 2d JQ3 model (slope  impurity)\n");
-                printf("\t\t 3 : 2d JQ3 model (ladder impurity)\n");
+                printf("\t\t 0 : 3d JQ3 model (ladder uniform)\n");
                 printf("\t-m mode for calculate observable\n");
                 printf("\t\t 0 : normal scheme\n");
                 printf("\t\t 1 : beta-doubling scheme\n");
@@ -1008,14 +687,15 @@ void set_opt(int argc, char **argv)
 
 int main(int argc, char** argv){
     int length=1000;
-    int n_obs=9;
+    int n_obs=6;
     double buffer=1.3;
 
     /*--------------default value----------------*/
     Beta = 4096;
     Seed = 9237912;
-    Nx = 48;
-    Ny = 48;
+    Nx = 8;
+    Ny = 8;
+    Nz = 8;
     Qbond = 1.0;
     P = 0;
     Nther = 20000;
@@ -1034,10 +714,7 @@ int main(int argc, char** argv){
 
     set_random_number(Seed);
 
-    if(LatticeType==0) set_lattice_jq3_slope_uniform(Nx,Ny,Qbond);
-    else if(LatticeType==1) set_lattice_jq3_ladder_uniform(Nx,Ny,Qbond);
-    else if(LatticeType==2) set_lattice_jq3_slope_impurity(Nx,Ny,Qbond);
-    else if(LatticeType==3) set_lattice_jq3_ladder_impurity(Nx,Ny,Qbond);
+    if(LatticeType==0) set_lattice_jq3_3d_ladder_uniform(Nx,Ny,Nz,Qbond);
     set_sequence_length(length);
 
 
