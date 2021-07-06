@@ -612,7 +612,7 @@ int Help;
 void set_opt(int argc, char **argv)
 {
     int c;
-    while((c=getopt(argc,argv,"hx:y:q:b:n:k:t:s:f:m:l:p:"))!=-1){
+    while((c=getopt(argc,argv,"hx:y:z:q:b:n:k:t:s:f:m:l:p:"))!=-1){
         switch(c){
             case 'h':
                 Help=1;
@@ -627,6 +627,7 @@ void set_opt(int argc, char **argv)
                 printf("\t\t 3 : beta increasing scheme without propagate state\n");
                 printf("\t-x <length of x> default 8\n");
                 printf("\t-y <length of y> default 8\n");
+                printf("\t-z <length of z> default 8\n");
                 printf("\t-q <Q3/J ratio> default 1.0\n");
                 printf("\t-p <Q3' = q +- p> default 0.0\n");
                 printf("\t-b <beta> default 4.0\n");
@@ -691,16 +692,16 @@ int main(int argc, char** argv){
     double buffer=1.3;
 
     /*--------------default value----------------*/
-    Beta = 4096;
+    Beta = 8;
     Seed = 9237912;
     Nx = 8;
     Ny = 8;
     Nz = 8;
     Qbond = 1.0;
     P = 0;
-    Nther = 20000;
+    Nther = 1000;
     Nsample = 2000;
-    Nblock = 50;
+    Nblock = 0;
     Mode = 0;
     LatticeType = 0;
     Nit = 5;
