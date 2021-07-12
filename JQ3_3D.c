@@ -341,6 +341,8 @@ void measurement(int i_sample){
     double ms1=0;
     double ms2=0;
     double ms4=0;
+    double dx=0;
+    double dy=0;
     if(stagger_factor==NULL){
         stagger_factor = (int*)malloc(sizeof(int)*Nx*Ny*Nz);
         for(int k=0;k<Nz;k++){
@@ -356,15 +358,35 @@ void measurement(int i_sample){
         ms+=Sigma0[i]*stagger_factor[i];
     }
 
+    int volume = Nx*Ny*Nz;
+    int s1,s2,s3,s4,s5,s6;
+    for(int k=0;k<Nz;k++) {
+        for(int j=0;j<Ny;j++) {
+            for(int i=0;i<Nx;i++) {
+                s1 = i + j*Nx + k*Nx*Ny;
+                s2 = (i+1)%Nx + j*Nx + k*Nx*Ny;
+                dx += Sigma0[s1]*Sigma0[s2]*(1-(i%2)*2);
+                
+                s2 = i + ((j+1)%Ny)*Nx + k*Nx*Ny;
+                dy += Sigma0[s1]*Sigma0[s2]*(1-(j%2)*2);
+            }
+        }
+    }
+    dx = dx*0.25/volume;
+    dy = dy*0.25/volume;
+
     /*-------------- propagate state ----------------*/
     for(int i=0;i<Nsite;i++) Sigmap[i] = Sigma0[i];
-    int sp,i_bond,type;
-    int s1,s2,s3,s4,s5,s6;
+    int sp,i_bond,type,q;
+    double wx=0;
+    double wy=0;
+    double wz=0;
     for(int p=0;p<L;++p){
         sp = Sequence[p];
         if(sp!=-1){
             type = sp%10;
             i_bond = sp/10;
+            q = i_bond/volume;
 
             s1 = Bond2index[i_bond*6+0];
             s2 = Bond2index[i_bond*6+1];
@@ -373,9 +395,15 @@ void measurement(int i_sample){
             s5 = Bond2index[i_bond*6+4];
             s6 = Bond2index[i_bond*6+5];
 
+            double* wptr = &wx;
+            if(q==1 || q==4) wptr = &wy;
+            else if(q==2) wptr = &wz;
+
             if(type==1 || type==3){
                 ms += -2*Sigmap[s1]*stagger_factor[s1];
                 ms += -2*Sigmap[s2]*stagger_factor[s2];
+
+                *wptr += Sigmap[s1];
 
                 Sigmap[s1] *= -1;
                 Sigmap[s2] *= -1;
@@ -383,11 +411,15 @@ void measurement(int i_sample){
                 ms += -2*Sigmap[s3]*stagger_factor[s3];
                 ms += -2*Sigmap[s4]*stagger_factor[s4];
 
+                *wptr += Sigmap[s3];
+
                 Sigmap[s3] *= -1;
                 Sigmap[s4] *= -1;
             } else if(type==5) {
                 ms += -2*Sigmap[s5]*stagger_factor[s5];
                 ms += -2*Sigmap[s6]*stagger_factor[s6];
+
+                *wptr += Sigmap[s5];
 
                 Sigmap[s5] *= -1;
                 Sigmap[s6] *= -1;
@@ -396,6 +428,9 @@ void measurement(int i_sample){
                 ms += -2*Sigmap[s2]*stagger_factor[s2];
                 ms += -2*Sigmap[s3]*stagger_factor[s3];
                 ms += -2*Sigmap[s4]*stagger_factor[s4];
+
+                *wptr += Sigmap[s1];
+                *wptr += Sigmap[s3];
 
                 Sigmap[s1] *= -1;
                 Sigmap[s2] *= -1;
@@ -407,6 +442,9 @@ void measurement(int i_sample){
                 ms += -2*Sigmap[s5]*stagger_factor[s5];
                 ms += -2*Sigmap[s6]*stagger_factor[s6];
 
+                *wptr += Sigmap[s1];
+                *wptr += Sigmap[s5];
+
                 Sigmap[s1] *= -1;
                 Sigmap[s2] *= -1;
                 Sigmap[s5] *= -1;
@@ -416,6 +454,9 @@ void measurement(int i_sample){
                 ms += -2*Sigmap[s4]*stagger_factor[s4];
                 ms += -2*Sigmap[s5]*stagger_factor[s5];
                 ms += -2*Sigmap[s6]*stagger_factor[s6];
+
+                *wptr += Sigmap[s3];
+                *wptr += Sigmap[s5];
 
                 Sigmap[s3] *= -1;
                 Sigmap[s4] *= -1;
@@ -428,6 +469,10 @@ void measurement(int i_sample){
                 ms += -2*Sigmap[s4]*stagger_factor[s4];
                 ms += -2*Sigmap[s5]*stagger_factor[s5];
                 ms += -2*Sigmap[s6]*stagger_factor[s6];
+
+                *wptr += Sigmap[s1];
+                *wptr += Sigmap[s3];
+                *wptr += Sigmap[s5];
 
                 Sigmap[s1] *= -1;
                 Sigmap[s2] *= -1;
@@ -461,8 +506,12 @@ void measurement(int i_sample){
     Data[Nobs*i_sample+1] = ms2;
     Data[Nobs*i_sample+2] = ms4;
     Data[Nobs*i_sample+3] = msx;
-    Data[Nobs*i_sample+4] = mz2/Nsite;
+    Data[Nobs*i_sample+4] = mz2;
     Data[Nobs*i_sample+5] = Noo;
+    Data[Nobs*i_sample+6] = wx*wx/Nx/Nx;
+    Data[Nobs*i_sample+7] = wy*wy/Ny/Ny;
+    Data[Nobs*i_sample+8] = wz*wz/Nz/Nz;
+    Data[Nobs*i_sample+9] = dx*dx+dy*dy;
 }
 
 /* --------------------------------------------------------- **
@@ -650,6 +699,9 @@ void set_opt(int argc, char **argv)
             case 'y':
                 Ny=atoi(optarg);
                 break;
+            case 'z':
+                Nz=atoi(optarg);
+                break;
             case 'q':
                 Qbond=atof(optarg);
                 break;
@@ -688,7 +740,7 @@ void set_opt(int argc, char **argv)
 
 int main(int argc, char** argv){
     int length=1000;
-    int n_obs=6;
+    int n_obs=10;
     double buffer=1.3;
 
     /*--------------default value----------------*/
